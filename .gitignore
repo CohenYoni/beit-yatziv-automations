@@ -1,6 +1,6 @@
 *
 !.gitignore
 !requirements.txt
-!data_scrapper.py
+!data_scraper.py
 !reports_maker.py
 !app.py
