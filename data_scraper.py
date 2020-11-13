@@ -25,3 +25,6 @@ class School:
 
     def __str__(self) -> str:
         return self.name
+
+    def __eq__(self, other: 'School') -> bool:
+        return self.school_id == other.school_id
