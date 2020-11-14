@@ -96,7 +96,10 @@ class MashovScraper:
 
     def __init__(self, school_id: int, school_year: str):
         res = requests.get('https://web.mashov.info/api/schools', headers={'User-Agent': self.CHROME_UA})
-        res.raise_for_status()
+        try:
+            res.raise_for_status()
+        except requests.exceptions.HTTPError:
+            raise requests.exceptions.HTTPError('An error occurred while fetching school list from the server')
         all_schools_json = res.json()
         self._api_version = res.headers['apiversion']
         self._all_schools = dict()
@@ -161,7 +164,10 @@ class MashovScraper:
         self._session.get(self.LOGIN_PAGE_URL)
         self._session.get(self.CLEAR_SESSION_URL, headers={'Referer': self.LOGIN_PAGE_URL})
         res = self._session.post(self.LOGIN_API_URL, headers={'Referer': self.LOGIN_PAGE_URL}, json=login_json_data)
-        res.raise_for_status()
+        try:
+            res.raise_for_status()
+        except requests.exceptions.HTTPError:
+            raise requests.exceptions.HTTPError(f'Login process failed: {res.reason}: {res.text}')
         self._auth_json_response = res.json()
         self._csrf_token = self._session.cookies.get('Csrf-Token')
         self._logged_in = True
