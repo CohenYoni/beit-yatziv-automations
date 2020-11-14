@@ -110,7 +110,8 @@ class MashovScraper:
         self._session = requests.Session()
         const_headers = {
             'Connection': 'close',
-            'User-Agent': self.CHROME_UA
+            'User-Agent': self.CHROME_UA,
+            'Accept': 'application/json, text/plain, */*',
         }
         self._session.headers.update(const_headers)
         self._csrf_token = ''
@@ -170,14 +171,12 @@ class MashovScraper:
             raise requests.exceptions.HTTPError(f'Login process failed: {res.reason}: {res.text}')
         self._auth_json_response = res.json()
         self._csrf_token = self._session.cookies.get('Csrf-Token')
+        self._session.headers.update({'X-Csrf-Token': self._csrf_token})
         self._logged_in = True
 
     def logout(self) -> None:
         if not self._logged_in:
             return
-        headers = {'Referer': self.MAIN_DASHBOARD_PAGE_URL}
-        if self._csrf_token:
-            headers.update({'X-Csrf-Token': self._csrf_token})
-        self._session.get(self.LOGOUT_URL, headers=headers)
+        self._session.get(self.LOGOUT_URL, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
         self._session.close()
         self._logged_in = False
