@@ -1,4 +1,8 @@
+from datetime import datetime
+from datetime import date
+import pandas as pd
 import requests
+import urllib
 
 
 class School:
@@ -180,3 +184,42 @@ class MashovScraper:
         self._session.get(self.LOGOUT_URL, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
         self._session.close()
         self._logged_in = False
+
+    def create_behavior_report_by_dates(self, from_date: date, to_date: date, class_code: str) -> dict:
+        def parse_json_res(res_obj):
+            required_data = [
+                res_obj['teacher']['teacherName'],
+                res_obj['subjectName'],
+                datetime.strptime(res_obj['lessonLog']['lessonDate'], '%Y-%m-%dT%H:%M:%S').strftime('%d/%m/%Y'),
+                res_obj['lessonLog']['lesson'],
+                res_obj['student']['studentId'],
+                f'{res_obj["student"]["familyName"]} {res_obj["student"]["privateName"]}',
+                res_obj['student']['classCode'],
+                res_obj['student']['classNum'],
+                res_obj['achva']['name']
+            ]
+            try:
+                required_data.append(res_obj['achvaRemark']['remarkText'])
+            except KeyError:
+                required_data.append('')
+            try:
+                required_data.append(res_obj['justifiedBy']['teacherName'])
+            except KeyError:
+                required_data.append('')
+            try:
+                required_data.append(res_obj['achvaJustification']['justification'])
+            except KeyError:
+                required_data.append('')
+            return required_data
+
+        encoded_class = urllib.parse.quote(class_code)
+        from_date = f"{from_date.strftime('%Y-%m-%d')}T00:00:00Z"
+        to_date = f"{to_date.strftime('%Y-%m-%d')}T23:59:59Z"
+        url = f'{self.BASE_URL}/api/classes/{encoded_class}/behave?start={from_date}&end={to_date}'
+        res = self._session.get(url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
+        json_res = res.json()
+        columns = ['teacher_name', 'subject', 'lesson_date', 'lesson_num', 'student_id', 'student_name', 'class_code',
+                   'class_num', 'event_type', 'remark', 'justified_by', 'justification']
+        data = [parse_json_res(v) for v in json_res]
+        df = pd.DataFrame(data, columns=columns)
+        return df
