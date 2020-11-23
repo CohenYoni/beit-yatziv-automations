@@ -1,6 +1,7 @@
 from datetime import datetime
 from datetime import date
 import pandas as pd
+import numpy as np
 import requests
 import urllib
 
@@ -80,6 +81,7 @@ class MashovScraper:
     LOGIN_API_URL = f'{BASE_URL}/api/login'
     MAIN_DASHBOARD_PAGE_URL = f'{BASE_URL}/teachers/main/dashboard'
     LOGOUT_URL = f'{BASE_URL}/api/logout'
+    FAILED_GRADE_THRESHOLD = 55
 
     @staticmethod
     def map_heb_year_to_greg(heb_year: str) -> int:
@@ -186,7 +188,7 @@ class MashovScraper:
         self._logged_in = False
 
     def get_behavior_report_by_dates(self, from_date: date, to_date: date, class_code: str) -> pd.DataFrame:
-        def parse_json_res(res_obj):
+        def parse_json_res(res_obj: dict) -> list:
             student_json = res_obj.get('student', {})
             lesson_log_json = res_obj.get('lessonLog', {})
             teacher_json = res_obj.get('teacher', {})
@@ -199,7 +201,8 @@ class MashovScraper:
             try:
                 lesson_date = datetime.strptime(lesson_date, date_format).strftime('%d/%m/%Y')
             except:
-                print(f'Warning: Lesson date format changed! ("{lesson_date}" instead of {date_format})')
+                if lesson_date:
+                    print(f'Warning: Lesson date format changed! ("{lesson_date}" instead of {date_format})')
             required_data = [
                 teacher_json.get('teacherName', ''),
                 res_obj.get('subjectName', ''),
@@ -228,8 +231,8 @@ class MashovScraper:
         behavior_report_df = pd.DataFrame(data, columns=columns)
         return behavior_report_df
 
-    def get_phonebook_of_students(self, class_code: str) -> pd.DataFrame:
-        def parse_json_res(details, extra_data):
+    def get_students_phonebook(self, class_code: str) -> pd.DataFrame:
+        def parse_json_res(details: dict, extra_data: dict) -> list:
             student_json = details.get('student', {})
             student_info_json = details.get('studentInfo', {})
             contacts_list = details.get('contacts', [])
@@ -242,7 +245,9 @@ class MashovScraper:
             try:
                 student_birthdate = datetime.strptime(student_birthdate, date_format).strftime('%d/%m/%Y')
             except:
-                print(f'Warning: Student birthdate format changed! ("{student_birthdate}" instead of {date_format})')
+                if student_birthdate:
+                    msg = f'Warning: Student birthdate format changed! ("{student_birthdate}" instead of {date_format})'
+                    print(msg)
             required_data = [
                 student_id,
                 student_json.get('familyName', ''),
@@ -302,3 +307,55 @@ class MashovScraper:
         data = [parse_json_res(v, json_extra_data_res) for v in json_details_res]
         phonebook_df = pd.DataFrame(data, columns=columns)
         return phonebook_df
+
+    def get_grades_report(self, from_date: date, to_date: date, class_code: str) -> pd.DataFrame:
+        def map_grade_to_column(grade_json: dict) -> str:
+            date_format = '%Y-%m-%dT%H:%M:%S'
+            grading_event_json = grade_json.get('gradingEvent', {})
+            group_json = grade_json.get('group', {})
+            exam_type = grade_json.get('gradeType', {}).get('name', '')
+            exam_name = grading_event_json.get('name', '')
+            exam_subject = group_json.get('subjectName', '')
+            exam_date = grading_event_json.get('eDate', '')
+            try:
+                exam_date = datetime.strptime(exam_date, date_format).strftime('%d/%m/%Y')
+            except:
+                if exam_date:
+                    print(f'Warning: Student birthdate format changed! ("{exam_date}" instead of {date_format})')
+            column = f'{exam_type}|{exam_name}|{exam_date}|{exam_subject}'
+            return column
+
+        def parse_grades_json_res(grades_json: dict) -> pd.DataFrame:
+            columns = ['student_id', 'student_name', 'class_code', 'class_num']
+            exams_columns = set()
+            df = pd.DataFrame(columns=columns)
+            df.set_index('student_id', inplace=True)
+            for grade in grades_json:
+                exam_column = map_grade_to_column(grade)
+                exams_columns.add(exam_column)
+                if exam_column not in df.columns:
+                    df[exam_column] = ''
+                student_json = grade.get('student', {})
+                student_id = student_json.get('studentId', np.NaN)
+                if student_id and student_id not in df.index:
+                    new_student_data = {
+                        'student_name': f"{student_json.get('familyName', '')} {student_json.get('privateName', '')}",
+                        'class_code': student_json.get('classCode', ''),
+                        'class_num': student_json.get('classNum', '')
+                    }
+                    df = df.append(pd.DataFrame(new_student_data, index=[student_id]))
+                df.loc[student_id, exam_column] = grade.get('grade', {}).get('grade', np.NaN)
+            df.replace('', np.NaN, inplace=True)
+            df['negatives'] = (df[exams_columns] < self.FAILED_GRADE_THRESHOLD).sum(axis=1)
+            df.sort_index(inplace=True)
+            df.rename(columns={df.index.name: 'student_id'}, inplace=True)
+            return df
+
+        encoded_class = urllib.parse.quote(class_code)
+        from_date = f"{from_date.strftime('%Y-%m-%d')}T00:00:00Z"
+        to_date = f"{to_date.strftime('%Y-%m-%d')}T23:59:59Z"
+        grades_url = f'{self.BASE_URL}/api/classes/{encoded_class}/grades?start={from_date}&end={to_date}'
+        grades_res = self._session.get(grades_url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
+        json_grades_res = grades_res.json()
+        grades_df = parse_grades_json_res(json_grades_res)
+        return grades_df
