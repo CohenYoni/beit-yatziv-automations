@@ -82,6 +82,12 @@ class MashovScraper:
     MAIN_DASHBOARD_PAGE_URL = f'{BASE_URL}/teachers/main/dashboard'
     LOGOUT_URL = f'{BASE_URL}/api/logout'
     FAILED_GRADE_THRESHOLD = 55
+    LEVELS = {
+        'no_level': 'ללא',
+        'level_4': '4 יח"ל',
+        'level_5': '5 יח"ל',
+        'archives': 'ארכיון'
+    }
 
     @staticmethod
     def map_heb_year_to_greg(heb_year: str) -> int:
@@ -123,6 +129,7 @@ class MashovScraper:
         self._csrf_token = ''
         self._auth_json_response = dict()
         self._logged_in = False
+        self.classes = dict()
 
     @property
     def school(self) -> School:
@@ -179,6 +186,7 @@ class MashovScraper:
         self._csrf_token = self._session.cookies.get('Csrf-Token')
         self._session.headers.update({'X-Csrf-Token': self._csrf_token})
         self._logged_in = True
+        self.get_classes_details()
 
     def logout(self) -> None:
         if not self._logged_in:
@@ -359,3 +367,29 @@ class MashovScraper:
         json_grades_res = grades_res.json()
         grades_df = parse_grades_json_res(json_grades_res)
         return grades_df
+
+    def get_classes_details(self):
+        class_not_exists = -1
+        classes_url = f'{self.BASE_URL}/api/classes'
+        classes_res = self._session.get(classes_url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
+        json_classes_res = classes_res.json()
+        for json_class in json_classes_res:
+            class_code = json_class.get('classCode')
+            class_num = json_class.get('classNum')
+            current_class_num = self.classes.get(class_code, class_not_exists)
+            if class_num > current_class_num:
+                self.classes[class_code] = class_num
+
+    def get_class_level(self, class_code: str, class_num: int) -> str:
+        assert type(class_num) == int, 'Class number must be an integer!'
+        there_is_no_classes = 0
+        min_class_num = 3
+        num_of_classes = self.classes.get(class_code, there_is_no_classes)
+        if num_of_classes < min_class_num:
+            return self.LEVELS['no_level']  # means that there is no division into levels
+        elif class_num == num_of_classes:
+            return self.LEVELS['archives']
+        elif class_num == num_of_classes - 1:
+            return self.LEVELS['level_5']
+        else:
+            return self.LEVELS['level_4']
