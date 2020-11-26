@@ -88,6 +88,7 @@ class MashovScraper:
         'level_5': '5 יח"ל',
         'archives': 'ארכיון'
     }
+    DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
     def map_heb_year_to_greg(heb_year: str) -> int:
@@ -237,6 +238,7 @@ class MashovScraper:
                    'class_num', 'event_type', 'remark', 'justified_by', 'justification']
         data = [parse_json_res(v) for v in json_res]
         behavior_report_df = pd.DataFrame(data, columns=columns)
+        behavior_report_df['lesson_date'] = pd.to_datetime(behavior_report_df['lesson_date'], format=self.DATE_FORMAT)
         return behavior_report_df
 
     def get_students_phonebook(self, class_code: str) -> pd.DataFrame:
