@@ -1,9 +1,11 @@
 from datetime import datetime
 from datetime import date
+from typing import Dict
 import pandas as pd
 import numpy as np
 import requests
 import urllib
+import re
 
 
 class School:
@@ -41,7 +43,57 @@ class School:
         return self.school_id == other.school_id
 
 
+class Class:
+    def __init__(self, class_code: str, class_num: int, practitioner: str, level: str):
+        self._class_code = class_code
+        self._class_num = class_num
+        self._practitioner = practitioner
+        self._level = level
+
+    @property
+    def class_code(self) -> str:
+        return self._class_code
+
+    @class_code.setter
+    def class_code(self, class_code: str) -> None:
+        self._class_code = class_code
+
+    @property
+    def class_num(self) -> int:
+        return self._class_num
+
+    @class_num.setter
+    def class_num(self, class_num: int) -> None:
+        self._class_num = class_num
+
+    @property
+    def practitioner(self) -> str:
+        return self._practitioner
+
+    @practitioner.setter
+    def practitioner(self, practitioner: str) -> None:
+        self._practitioner = practitioner
+
+    @property
+    def level(self) -> str:
+        return self._level
+
+    @level.setter
+    def level(self, level: str) -> None:
+        self._level = level
+
+    def __str__(self) -> str:
+        return f'{self.class_code}{self._class_num} - {self.practitioner} - {self.level}'
+
+    def __repr__(self) -> str:
+        return str(self)
+
+
 class MashovScraper:
+    class ClassLevel:
+        NO_LEVEL = 'ללא'
+        ARCHIVES = 'ארכיון'
+
     HEB_TO_GREG_YEAR_MAPPER = {
         'תשעה': 2015,
         'תשעו': 2016,
@@ -82,12 +134,6 @@ class MashovScraper:
     MAIN_DASHBOARD_PAGE_URL = f'{BASE_URL}/teachers/main/dashboard'
     LOGOUT_URL = f'{BASE_URL}/api/logout'
     FAILED_GRADE_THRESHOLD = 55
-    LEVELS = {
-        'no_level': 'ללא',
-        'level_4': '4 יח"ל',
-        'level_5': '5 יח"ל',
-        'archives': 'ארכיון'
-    }
     DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
@@ -130,7 +176,7 @@ class MashovScraper:
         self._csrf_token = ''
         self._auth_json_response = dict()
         self._logged_in = False
-        self.classes = dict()
+        self.classes_details: Dict[str, Dict[int, Class]] = dict()
 
     @property
     def school(self) -> School:
@@ -381,28 +427,44 @@ class MashovScraper:
 
     def get_classes_details(self):
         self.assert_logged_in()
-        class_not_exists = -1
         classes_url = f'{self.BASE_URL}/api/classes'
         classes_res = self._session.get(classes_url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
         json_classes_res = classes_res.json()
         for json_class in json_classes_res:
             class_code = json_class.get('classCode')
             class_num = json_class.get('classNum')
-            current_class_num = self.classes.get(class_code, class_not_exists)
-            if class_num > current_class_num:
-                self.classes[class_code] = class_num
+            class_name_attr = json_class.get('className', '')
+            level_regex_pattern = re.compile(r'(?P<practitioner>[א-ת ]+?) *- *(?P<level>.?\d.? יח\"?ל)')
+            regex_search_res = level_regex_pattern.search(class_name_attr)
+            if regex_search_res:
+                practitioner = regex_search_res.group('practitioner')
+                level = regex_search_res.group('level')
+            else:
+                practitioner = class_name_attr
+                level = self.ClassLevel.NO_LEVEL
+            cur_class = Class(class_code=class_code, class_num=class_num, practitioner=practitioner, level=level)
+            if class_code not in self.classes_details.keys():
+                self.classes_details[class_code] = dict()
+            self.classes_details[class_code][class_num] = cur_class
+        for class_code, class_numbers_dict in self.classes_details.items():
+            archives_class_num = max(class_numbers_dict.keys())
+            class_numbers_dict[archives_class_num].practitioner = ''
+            class_numbers_dict[archives_class_num].level = self.ClassLevel.ARCHIVES
+
+    def _get_class_details(self, class_code: str, class_num: int) -> Class:
+        self.assert_logged_in()
+        assert type(class_code) == str, 'Class code must be a string!'
+        assert type(class_num) == int, 'Class number must be an integer!'
+        return self.classes_details.get(class_code, {}).get(class_num, None)
 
     def get_class_level(self, class_code: str, class_num: int) -> str:
-        self.assert_logged_in()
-        assert type(class_num) == int, 'Class number must be an integer!'
-        there_is_no_classes = 0
-        min_class_num = 3
-        num_of_classes = self.classes.get(class_code, there_is_no_classes)
-        if num_of_classes < min_class_num:
-            return self.LEVELS['no_level']  # means that there is no division into levels
-        elif class_num == num_of_classes:
-            return self.LEVELS['archives']
-        elif class_num == num_of_classes - 1:
-            return self.LEVELS['level_5']
-        else:
-            return self.LEVELS['level_4']
+        class_details = self._get_class_details(class_code, class_num)
+        if class_details is None:
+            return self.ClassLevel.NO_LEVEL
+        return class_details.level
+
+    def get_class_practitioner(self, class_code: str, class_num: int) -> str:
+        class_details = self._get_class_details(class_code, class_num)
+        if class_details is None:
+            return ''
+        return class_details.practitioner
