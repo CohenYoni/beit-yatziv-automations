@@ -133,7 +133,7 @@ class MashovScraper:
     LOGIN_API_URL = f'{BASE_URL}/api/login'
     MAIN_DASHBOARD_PAGE_URL = f'{BASE_URL}/teachers/main/dashboard'
     LOGOUT_URL = f'{BASE_URL}/api/logout'
-    FAILED_GRADE_THRESHOLD = 55
+    FAILED_GRADE_THRESHOLD = 56
     DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
