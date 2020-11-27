@@ -160,6 +160,9 @@ class MashovScraper:
             raise TypeError(f'There is not {school_year} in {self.school.name} (possible years are {possible_years})')
         self._school_year = gregorian_year
 
+    def assert_logged_in(self):
+        assert self._logged_in, 'You must log in first!'
+
     def login(self, username: str, password: str) -> None:
         login_json_data = {
             'apiVersion': self._api_version,
@@ -197,6 +200,8 @@ class MashovScraper:
         self._logged_in = False
 
     def get_behavior_report_by_dates(self, from_date: date, to_date: date, class_code: str) -> pd.DataFrame:
+        self.assert_logged_in()
+
         def parse_json_res(res_obj: dict) -> list:
             student_json = res_obj.get('student', {})
             lesson_log_json = res_obj.get('lessonLog', {})
@@ -242,6 +247,8 @@ class MashovScraper:
         return behavior_report_df
 
     def get_students_phonebook(self, class_code: str) -> pd.DataFrame:
+        self.assert_logged_in()
+
         def parse_json_res(details: dict, extra_data: dict) -> list:
             student_json = details.get('student', {})
             student_info_json = details.get('studentInfo', {})
@@ -319,6 +326,8 @@ class MashovScraper:
         return phonebook_df
 
     def get_grades_report(self, from_date: date, to_date: date, class_code: str) -> pd.DataFrame:
+        self.assert_logged_in()
+
         def map_grade_to_column(grade_json: dict) -> str:
             date_format = '%Y-%m-%dT%H:%M:%S'
             grading_event_json = grade_json.get('gradingEvent', {})
@@ -371,6 +380,7 @@ class MashovScraper:
         return grades_df
 
     def get_classes_details(self):
+        self.assert_logged_in()
         class_not_exists = -1
         classes_url = f'{self.BASE_URL}/api/classes'
         classes_res = self._session.get(classes_url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
@@ -383,6 +393,7 @@ class MashovScraper:
                 self.classes[class_code] = class_num
 
     def get_class_level(self, class_code: str, class_num: int) -> str:
+        self.assert_logged_in()
         assert type(class_num) == int, 'Class number must be an integer!'
         there_is_no_classes = 0
         min_class_num = 3
