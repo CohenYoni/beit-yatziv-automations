@@ -36,3 +36,21 @@ class SchoolData(School):
     @grades_report.setter
     def grades_report(self, grades_report: pd.DataFrame) -> None:
         self._grades_report = grades_report
+
+    class ReportMaker:
+        class LessonEvents:
+            PRESENCE = 'נוכחות'
+            MISSING = 'חיסור'
+            REINFORCEMENT = 'חיזוק חיובי'
+            LATE = 'איחור'
+            DISTURB = 'הפרעה'
+
+        HEB_WEEKDAYS = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
+        HEB_DAYS_MAPPER = {idx: day for idx, day in enumerate(HEB_WEEKDAYS, 0)}
+
+        def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
+            self.schools_data: typing.Dict[int, SchoolData] = {_id: None for _id in schools_ids}
+            self.heb_year = heb_year
+            self.class_code = class_code
+            self.username = username
+            self.password = password
