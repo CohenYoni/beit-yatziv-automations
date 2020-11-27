@@ -50,6 +50,13 @@ class ReportMaker:
     HEB_DAYS_MAPPER = {idx: day for idx, day in enumerate(HEB_WEEKDAYS, 0)}
     NO_REMARKS = 'ללא הערות'
 
+    @staticmethod
+    def count_events(events_df, event_type):
+        event_filter = events_df['event_type'] == event_type
+        result = events_df.loc[event_filter, 'event_type']
+        num_of_result = result.count()
+        return num_of_result
+
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
         self.schools_data: typing.Dict[int, SchoolData] = {_id: None for _id in schools_ids}
         self.heb_year = heb_year
@@ -108,3 +115,29 @@ class ReportMaker:
             no_remark_events_df.columns = columns
             events_without_remarks = pd.concat([events_without_remarks, no_remark_events_df], ignore_index=True)
         return events_without_remarks
+
+    def create_middle_week_lessons_report(self) -> pd.DataFrame:
+        columns = ['בית ספר', 'נוכחים', 'חיסורים', 'חיזוקים', 'איחור', 'הפרעה', 'מצבת']
+        middle_week_lessons_df = pd.DataFrame(columns=columns)
+        for school_id, school_data in self.schools_data.items():
+            not_in_saturday_filter = school_data.behavior_report['lesson_date'].dt.weekday != calendar.SATURDAY
+            required_columns = ['lesson_date', 'event_type']
+            not_in_saturday_df = school_data.behavior_report.loc[not_in_saturday_filter, required_columns]
+            num_of_students = not_in_saturday_df['lesson_date'].count()
+            num_of_presents = self.count_events(not_in_saturday_df, self.LessonEvents.PRESENCE)
+            num_of_missing = self.count_events(not_in_saturday_df, self.LessonEvents.MISSING)
+            num_of_reinforcements = self.count_events(not_in_saturday_df, self.LessonEvents.REINFORCEMENT)
+            num_of_lateness = self.count_events(not_in_saturday_df, self.LessonEvents.LATE)
+            num_of_disturbs = self.count_events(not_in_saturday_df, self.LessonEvents.DISTURB)
+            data = [[
+                school_data.name,
+                num_of_presents,
+                num_of_missing,
+                num_of_reinforcements,
+                num_of_lateness,
+                num_of_disturbs,
+                num_of_students
+            ]]
+            curr_df = pd.DataFrame(data, columns=columns)
+            middle_week_lessons_df = pd.concat([middle_week_lessons_df, curr_df], ignore_index=True)
+        return middle_week_lessons_df
