@@ -76,3 +76,16 @@ class SchoolData(School):
                     raise
                 finally:
                     scraper.logout()
+
+        def create_presence_summary_report(self) -> pd.DataFrame:
+            presence_summary_df = pd.DataFrame(columns=['בית ספר'])
+            for school_id, school_data in self.schools_data.items():
+                presence_filter = school_data.behavior_report['event_type'] == self.LessonEvents.PRESENCE
+                presence_df = school_data.behavior_report.loc[presence_filter, ['lesson_date', 'event_type']]
+                presents_grp = presence_df.groupby(['lesson_date'])
+                count_grp = presents_grp.agg('count')
+                presence_df = pd.DataFrame(columns=count_grp.index.to_list())
+                presence_df = presence_df.append(count_grp['event_type'], ignore_index=True)
+                presence_df['בית ספר'] = [school_data.name]
+                presence_summary_df = pd.concat([presence_summary_df, presence_df], ignore_index=True)
+            return presence_summary_df
