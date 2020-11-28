@@ -2,7 +2,7 @@ from data_server import MashovServer, School
 from datetime import date
 import pandas as pd
 import calendar
-import typing
+from typing import Dict
 
 
 class SchoolData(School):
@@ -12,10 +12,10 @@ class SchoolData(School):
         self._behavior_report = None
         self._phonebook = None
         self._grades_report = None
-        self._organic_teachers: typing.Dict[int, str] = dict()
-        self._practitioners: typing.Dict[int, str] = dict()
-        self._levels: typing.Dict[int, str] = dict()
-        self._num_of_students: typing.Dict[int, int] = dict()
+        self._organic_teachers: Dict[int, str] = dict()
+        self._practitioners: Dict[int, str] = dict()
+        self._levels: Dict[int, str] = dict()
+        self._num_of_students: Dict[int, int] = dict()
         self._num_of_active_classes = 0
 
     @property
@@ -100,7 +100,7 @@ class ReportMaker:
         return num_of_result
 
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
-        self.schools_data: typing.Dict[int, SchoolData] = {_id: None for _id in schools_ids}
+        self.schools_data: Dict[int, SchoolData] = {_id: None for _id in schools_ids}
         self.heb_year = heb_year
         self.class_code = class_code
         self.username = username
@@ -212,12 +212,12 @@ class ReportMaker:
         error_msg += f'{error_msg} (current: {current_date_range}, required: {required_date_range})'
         assert self.from_date <= from_date <= to_date <= self.to_date, error_msg
 
-    def create_periodic_attendance_report(self, from_date: date, to_date: date) -> typing.Dict[str, pd.DataFrame]:
+    def create_periodic_attendance_report(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         self.assert_dates_in_range(from_date, to_date)
         from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT))
         to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT))
         const_columns = ['מורה אורגני', 'מתרגל', 'יח"ל', 'מצבת']
-        periodic_attendance: typing.Dict[str, pd.DataFrame] = dict()
+        periodic_attendance: Dict[str, pd.DataFrame] = dict()
         for school_id, school_data in self.schools_data.items():
             all_behaviors = school_data.behavior_report
             from_date_filter = all_behaviors['lesson_date'] >= pd.to_datetime(from_date)
