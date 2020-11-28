@@ -1,8 +1,9 @@
 from data_server import MashovServer, School
-from datetime import date
+from datetime import datetime, date
+from typing import Dict, Sequence
 import pandas as pd
+import numpy as np
 import calendar
-from typing import Dict
 
 
 class SchoolData(School):
@@ -98,6 +99,15 @@ class ReportMaker:
         result = events_df.loc[event_filter, 'event_type']
         num_of_result = result.count()
         return num_of_result
+
+    @staticmethod
+    def sort_datetime_columns_names(df: pd.DataFrame, non_datetime_names: Sequence, datetime_format: str):
+        non_datetime_names_columns = df[non_datetime_names]
+        datetime_names_columns = df.drop(non_datetime_names_columns, axis=1)
+        datetime_names_columns.columns = [datetime.strptime(d, datetime_format) for d in datetime_names_columns.columns]
+        datetime_names_columns = datetime_names_columns.sort_index(axis=1)
+        datetime_names_columns.columns = [datetime.strftime(d, datetime_format) for d in datetime_names_columns.columns]
+        return pd.concat([non_datetime_names_columns, datetime_names_columns], axis=1)
 
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
         self.schools_data: Dict[int, SchoolData] = {_id: None for _id in schools_ids}
@@ -212,7 +222,7 @@ class ReportMaker:
         error_msg += f'{error_msg} (current: {current_date_range}, required: {required_date_range})'
         assert self.from_date <= from_date <= to_date <= self.to_date, error_msg
 
-    def create_periodic_attendance_report(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
+    def create_presence_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         self.assert_dates_in_range(from_date, to_date)
         from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT))
         to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT))
@@ -244,5 +254,5 @@ class ReportMaker:
                     num_of_presence = lesson_date_events.count()
                     new_row_data[lesson_date] = num_of_presence
                 current_school_df = current_school_df.append(new_row_data, ignore_index=True)
-            periodic_attendance[school_name] = current_school_df
+            periodic_attendance[school_name] = current_school_df.replace(0, np.NaN)
         return periodic_attendance
