@@ -12,6 +12,9 @@ class SchoolData(School):
         self._behavior_report = None
         self._phonebook = None
         self._grades_report = None
+        self._organic_teachers: typing.Dict[int, str] = dict()
+        self._teachers: typing.Dict[int, str] = dict()
+        self._practitioners: typing.Dict[int, str] = dict()
 
     @property
     def behavior_report(self) -> pd.DataFrame:
@@ -36,6 +39,24 @@ class SchoolData(School):
     @grades_report.setter
     def grades_report(self, grades_report: pd.DataFrame) -> None:
         self._grades_report = grades_report
+
+    def add_organic_teacher(self, class_num: int, organic_teacher_name: str):
+        self._organic_teachers[class_num] = organic_teacher_name
+
+    def add_teacher(self, class_num: int, teacher_name: str):
+        self._teachers[class_num] = teacher_name
+
+    def add_practitioner(self, class_num, practitioner_name):
+        self._practitioners[class_num] = practitioner_name
+
+    def get_organic_teacher(self, class_num: int) -> str:
+        return self._organic_teachers.get(class_num, '')
+
+    def get_teacher(self, class_num: int) -> str:
+        return self._teachers.get(class_num, '')
+
+    def get_practitioner(self, class_num) -> str:
+        return self._practitioners.get(class_num, '')
 
 
 class ReportMaker:
