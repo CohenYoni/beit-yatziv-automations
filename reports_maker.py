@@ -13,10 +13,9 @@ class SchoolData(School):
         self._phonebook = None
         self._grades_report = None
         self._organic_teachers: typing.Dict[int, str] = dict()
-        self._teachers: typing.Dict[int, str] = dict()
         self._practitioners: typing.Dict[int, str] = dict()
         self._levels: typing.Dict[int, str] = dict()
-        self._num_of_classes = 0
+        self._num_of_active_classes = 0
 
     @property
     def behavior_report(self) -> pd.DataFrame:
@@ -43,20 +42,17 @@ class SchoolData(School):
         self._grades_report = grades_report
 
     @property
-    def num_of_classes(self):
-        return self._num_of_classes
+    def num_of_active_classes(self):
+        return self._num_of_active_classes
 
-    @num_of_classes.setter
-    def num_of_classes(self, num_of_classes: int) -> None:
-        if num_of_classes < 0:
-            num_of_classes = 0
-        self._num_of_classes = num_of_classes
+    @num_of_active_classes.setter
+    def num_of_active_classes(self, num_of_active_classes: int) -> None:
+        if num_of_active_classes < 0:
+            num_of_active_classes = 0
+        self._num_of_active_classes = num_of_active_classes
 
     def set_organic_teacher(self, class_num: int, organic_teacher_name: str):
         self._organic_teachers[class_num] = organic_teacher_name
-
-    def set_teacher(self, class_num: int, teacher_name: str):
-        self._teachers[class_num] = teacher_name
 
     def set_practitioner(self, class_num: int, practitioner_name: str):
         self._practitioners[class_num] = practitioner_name
@@ -66,9 +62,6 @@ class SchoolData(School):
 
     def get_organic_teacher(self, class_num: int) -> str:
         return self._organic_teachers.get(class_num, '')
-
-    def get_teacher(self, class_num: int) -> str:
-        return self._teachers.get(class_num, '')
 
     def get_practitioner(self, class_num) -> str:
         return self._practitioners.get(class_num, '')
@@ -121,6 +114,14 @@ class ReportMaker:
                 school_class_data.behavior_report = behavior_report
                 school_class_data.phonebook = phonebook
                 school_class_data.grades_report = grades_report
+                school_class_data.num_of_active_classes = server.get_num_of_active_classes(self.class_code)
+                for class_num in range(1, school_class_data.num_of_active_classes + 1):
+                    organic_teacher_name = server.get_organic_teacher_name(self.class_code, class_num)
+                    practitioner_name = server.get_class_practitioner(self.class_code, class_num)
+                    class_level = server.get_class_level(self.class_code, class_num)
+                    school_class_data.set_organic_teacher(class_num, organic_teacher_name)
+                    school_class_data.set_practitioner(class_num, practitioner_name)
+                    school_class_data.set_level(class_num, class_level)
                 self.schools_data[school_id] = school_class_data
             except Exception:
                 raise
