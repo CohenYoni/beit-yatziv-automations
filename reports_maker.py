@@ -1,4 +1,4 @@
-from data_scraper import MashovScraper, School
+from data_server import MashovServer, School
 from datetime import date
 import pandas as pd
 import calendar
@@ -68,17 +68,17 @@ class ReportMaker:
 
     def fetch_data_from_server(self, from_date: date, to_date: date) -> None:
         for school_id in self.schools_data.keys():
-            scraper = MashovScraper(school_id=school_id, school_year=self.heb_year)
+            server = MashovServer(school_id=school_id, school_year=self.heb_year)
             try:
-                scraper.login(username=self.username, password=self.password)
-                behavior_report = scraper.get_behavior_report_by_dates(from_date=from_date,
-                                                                       to_date=to_date,
-                                                                       class_code=self.class_code)
-                phonebook = scraper.get_students_phonebook(class_code=self.class_code)
-                grades_report = scraper.get_grades_report(from_date=from_date,
-                                                          to_date=to_date,
-                                                          class_code=self.class_code)
-                school_class_data = SchoolData(school_id, scraper.school.name, self.class_code)
+                server.login(username=self.username, password=self.password)
+                behavior_report = server.get_behavior_report_by_dates(from_date=from_date,
+                                                                      to_date=to_date,
+                                                                      class_code=self.class_code)
+                phonebook = server.get_students_phonebook(class_code=self.class_code)
+                grades_report = server.get_grades_report(from_date=from_date,
+                                                         to_date=to_date,
+                                                         class_code=self.class_code)
+                school_class_data = SchoolData(school_id, server.school.name, self.class_code)
                 school_class_data.behavior_report = behavior_report
                 school_class_data.phonebook = phonebook
                 school_class_data.grades_report = grades_report
@@ -86,7 +86,7 @@ class ReportMaker:
             except Exception:
                 raise
             finally:
-                scraper.logout()
+                server.logout()
 
     def create_presence_summary_report(self) -> pd.DataFrame:
         presence_summary_df = pd.DataFrame(columns=['בית ספר'])

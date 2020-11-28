@@ -89,7 +89,7 @@ class Class:
         return str(self)
 
 
-class MashovScraper:
+class MashovServer:
     class ClassLevel:
         NO_LEVEL = 'ללא'
         ARCHIVES = 'ארכיון'
@@ -139,14 +139,14 @@ class MashovScraper:
     @staticmethod
     def map_heb_year_to_greg(heb_year: str) -> int:
         clean_heb_year = heb_year.replace('\"', '').replace('\'', '')
-        if clean_heb_year not in MashovScraper.HEB_TO_GREG_YEAR_MAPPER.keys():
+        if clean_heb_year not in MashovServer.HEB_TO_GREG_YEAR_MAPPER.keys():
             raise TypeError(f'{heb_year} is not a correct Hebrew year!')
-        return MashovScraper.HEB_TO_GREG_YEAR_MAPPER[clean_heb_year]
+        return MashovServer.HEB_TO_GREG_YEAR_MAPPER[clean_heb_year]
 
     @staticmethod
     def map_greg_year_to_heb(greg_year: int) -> str:
         heb_year = ''
-        for heb, greg in MashovScraper.HEB_TO_GREG_YEAR_MAPPER.items():
+        for heb, greg in MashovServer.HEB_TO_GREG_YEAR_MAPPER.items():
             if greg_year == greg:
                 heb_year = heb
                 break
