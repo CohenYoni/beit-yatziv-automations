@@ -49,6 +49,8 @@ class ReportMaker:
     HEB_WEEKDAYS = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
     HEB_DAYS_MAPPER = {idx: day for idx, day in enumerate(HEB_WEEKDAYS, 0)}
     NO_REMARKS = 'ללא הערות'
+    FAIL_GRADE_THRESHOLD = 85
+    NEGATIVE_GRADE_THRESHOLD = 56
 
     @staticmethod
     def count_events(events_df, event_type):
