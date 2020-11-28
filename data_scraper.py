@@ -468,3 +468,11 @@ class MashovScraper:
         if class_details is None:
             return ''
         return class_details.practitioner
+
+    def get_organic_teacher_name(self, class_code: str, class_num: int) -> str:
+        phonebook_df = self.get_students_phonebook(class_code)
+        class_code_filter = phonebook_df['class_code'] == class_code
+        class_num_filter = phonebook_df['class_num'] == class_num
+        teachers_df = phonebook_df.loc[class_code_filter & class_num_filter, 'original_teacher']
+        return str(teachers_df.mode().head(1).item())
+
