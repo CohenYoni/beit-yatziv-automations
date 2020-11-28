@@ -15,6 +15,7 @@ class SchoolData(School):
         self._organic_teachers: typing.Dict[int, str] = dict()
         self._practitioners: typing.Dict[int, str] = dict()
         self._levels: typing.Dict[int, str] = dict()
+        self._num_of_students: typing.Dict[int, int] = dict()
         self._num_of_active_classes = 0
 
     @property
@@ -60,6 +61,9 @@ class SchoolData(School):
     def set_level(self, class_num: int, level: str):
         self._levels[class_num] = level
 
+    def set_num_of_students(self, class_num: int, num_of_students: int):
+        self._num_of_students[class_num] = num_of_students
+
     def get_organic_teacher(self, class_num: int) -> str:
         return self._organic_teachers.get(class_num, '')
 
@@ -68,6 +72,9 @@ class SchoolData(School):
 
     def get_level(self, class_num: int) -> str:
         return self._levels.get(class_num, '')
+
+    def get_num_of_students(self, class_num: int) -> int:
+        return self._num_of_students.get(class_num, 0)
 
 
 class ReportMaker:
@@ -83,6 +90,7 @@ class ReportMaker:
     NO_REMARKS = 'ללא הערות'
     FAIL_GRADE_THRESHOLD = 85
     NEGATIVE_GRADE_THRESHOLD = 56
+    DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
     def count_events(events_df, event_type):
@@ -127,6 +135,14 @@ class ReportMaker:
                 raise
             finally:
                 server.logout()
+        self.calculate_num_of_students()
+
+    def calculate_num_of_students(self):
+        for school_id, school_data in self.schools_data.items():
+            for class_num in range(1, school_data.num_of_active_classes + 1):
+                class_num_filter = school_data.behavior_report['class_num'] == class_num
+                class_num_students = school_data.behavior_report.loc[class_num_filter, 'student_id']
+                school_data.set_num_of_students(class_num, class_num_students.count())
 
     def create_presence_summary_report(self) -> pd.DataFrame:
         presence_summary_df = pd.DataFrame(columns=['בית ספר'])
