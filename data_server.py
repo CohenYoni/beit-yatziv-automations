@@ -476,3 +476,6 @@ class MashovServer:
         teachers_df = phonebook_df.loc[class_code_filter & class_num_filter, 'original_teacher']
         return str(teachers_df.mode().head(1).item())
 
+    def get_num_of_active_classes(self, class_code: str):
+        class_details = self.classes_details.get(class_code, {})
+        return max(class_details.keys()) - 1  # highest class is archives, not active
