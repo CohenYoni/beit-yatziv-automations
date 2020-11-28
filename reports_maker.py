@@ -105,8 +105,13 @@ class ReportMaker:
         self.class_code = class_code
         self.username = username
         self.password = password
+        self.from_date = None
+        self.to_date = None
 
     def fetch_data_from_server(self, from_date: date, to_date: date) -> None:
+        assert from_date <= to_date, 'From date must be less than to date'
+        self.from_date = from_date
+        self.to_date = to_date
         for school_id in self.schools_data.keys():
             server = MashovServer(school_id=school_id, school_year=self.heb_year)
             try:
@@ -142,7 +147,7 @@ class ReportMaker:
             for class_num in range(1, school_data.num_of_active_classes + 1):
                 class_num_filter = school_data.behavior_report['class_num'] == class_num
                 class_num_students = school_data.behavior_report.loc[class_num_filter, 'student_id']
-                school_data.set_num_of_students(class_num, class_num_students.count())
+                school_data.set_num_of_students(class_num, class_num_students.nunique())
 
     def create_presence_summary_report(self) -> pd.DataFrame:
         presence_summary_df = pd.DataFrame(columns=['בית ספר'])
@@ -199,3 +204,45 @@ class ReportMaker:
             curr_df = pd.DataFrame(data, columns=columns)
             middle_week_lessons_df = pd.concat([middle_week_lessons_df, curr_df], ignore_index=True)
         return middle_week_lessons_df
+
+    def assert_dates_in_range(self, from_date: date, to_date: date):
+        current_date_range = f'{self.from_date.strftime(self.DATE_FORMAT)} - {self.to_date.strftime(self.DATE_FORMAT)}'
+        required_date_range = f'{from_date.strftime(self.DATE_FORMAT)} - {to_date.strftime(self.DATE_FORMAT)}'
+        error_msg = 'You must fetch the data again with the new date range!'
+        error_msg += f'{error_msg} (current: {current_date_range}, required: {required_date_range})'
+        assert self.from_date <= from_date <= to_date <= self.to_date, error_msg
+
+    def create_periodic_attendance_report(self, from_date: date, to_date: date) -> typing.Dict[str, pd.DataFrame]:
+        self.assert_dates_in_range(from_date, to_date)
+        from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT))
+        to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT))
+        const_columns = ['מורה אורגני', 'מתרגל', 'יח"ל', 'מצבת']
+        periodic_attendance: typing.Dict[str, pd.DataFrame] = dict()
+        for school_id, school_data in self.schools_data.items():
+            all_behaviors = school_data.behavior_report
+            from_date_filter = all_behaviors['lesson_date'] >= pd.to_datetime(from_date)
+            to_date_filter = all_behaviors['lesson_date'] <= pd.to_datetime(to_date)
+            period_behavior_report = all_behaviors.loc[from_date_filter & to_date_filter]
+            school_name = school_data.name
+            lesson_dates = list(period_behavior_report['lesson_date'].dt.strftime(self.DATE_FORMAT).unique())
+            current_school_columns = const_columns + lesson_dates
+            current_school_df = pd.DataFrame(columns=current_school_columns)
+            for class_num in range(1, school_data.num_of_active_classes + 1):
+                new_row_data = {
+                    'מורה אורגני': school_data.get_organic_teacher(class_num),
+                    'מתרגל': school_data.get_practitioner(class_num),
+                    'יח"ל': school_data.get_level(class_num),
+                    'מצבת': school_data.get_num_of_students(class_num)
+                }
+                for lesson_date in lesson_dates:
+                    converted_lesson_date = pd.to_datetime(lesson_date, format=self.DATE_FORMAT)
+                    date_filter = period_behavior_report['lesson_date'] == converted_lesson_date
+                    presence_filter = period_behavior_report['event_type'] == self.LessonEvents.PRESENCE
+                    class_num_filter = period_behavior_report['class_num'] == class_num
+                    lesson_date_events = period_behavior_report.loc[date_filter & presence_filter & class_num_filter,
+                                                                    'student_id']
+                    num_of_presence = lesson_date_events.count()
+                    new_row_data[lesson_date] = num_of_presence
+                current_school_df = current_school_df.append(new_row_data, ignore_index=True)
+            periodic_attendance[school_name] = current_school_df
+        return periodic_attendance
