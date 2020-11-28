@@ -15,6 +15,8 @@ class SchoolData(School):
         self._organic_teachers: typing.Dict[int, str] = dict()
         self._teachers: typing.Dict[int, str] = dict()
         self._practitioners: typing.Dict[int, str] = dict()
+        self._levels: typing.Dict[int, str] = dict()
+        self._num_of_classes = 0
 
     @property
     def behavior_report(self) -> pd.DataFrame:
@@ -40,14 +42,27 @@ class SchoolData(School):
     def grades_report(self, grades_report: pd.DataFrame) -> None:
         self._grades_report = grades_report
 
-    def add_organic_teacher(self, class_num: int, organic_teacher_name: str):
+    @property
+    def num_of_classes(self):
+        return self._num_of_classes
+
+    @num_of_classes.setter
+    def num_of_classes(self, num_of_classes: int) -> None:
+        if num_of_classes < 0:
+            num_of_classes = 0
+        self._num_of_classes = num_of_classes
+
+    def set_organic_teacher(self, class_num: int, organic_teacher_name: str):
         self._organic_teachers[class_num] = organic_teacher_name
 
-    def add_teacher(self, class_num: int, teacher_name: str):
+    def set_teacher(self, class_num: int, teacher_name: str):
         self._teachers[class_num] = teacher_name
 
-    def add_practitioner(self, class_num, practitioner_name):
+    def set_practitioner(self, class_num: int, practitioner_name: str):
         self._practitioners[class_num] = practitioner_name
+
+    def set_level(self, class_num: int, level: str):
+        self._levels[class_num] = level
 
     def get_organic_teacher(self, class_num: int) -> str:
         return self._organic_teachers.get(class_num, '')
@@ -57,6 +72,9 @@ class SchoolData(School):
 
     def get_practitioner(self, class_num) -> str:
         return self._practitioners.get(class_num, '')
+
+    def get_level(self, class_num: int) -> str:
+        return self._levels.get(class_num, '')
 
 
 class ReportMaker:
