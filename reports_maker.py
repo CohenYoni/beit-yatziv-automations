@@ -6,6 +6,22 @@ import numpy as np
 import calendar
 
 
+MONTHS_IN_HEBREW = {
+    1: 'ינואר',
+    2: 'פברואר',
+    3: 'מרץ',
+    4: 'אפריל',
+    5: 'מאי',
+    6: 'יוני',
+    7: 'יולי',
+    8: 'אוגוסט',
+    9: 'ספטמבר',
+    10: 'אוקטובר',
+    11: 'נובמבר',
+    12: 'דצמבר',
+}
+
+
 class SchoolData(School):
     def __init__(self, school_id: int, name: str, class_code: str):
         super().__init__(school_id, name)
