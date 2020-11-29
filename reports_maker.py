@@ -295,3 +295,51 @@ class ReportMaker:
                                                                      self.DATE_FORMAT)
             municipal_presence_by_levels[level] = each_school_in_row_df
         return municipal_presence_by_levels
+
+    def create_presence_report_by_month(self, from_month_num: int, to_month_num: int,
+                                        from_year: int, to_year: int) -> Dict[str, pd.DataFrame]:
+        to_month_week_day, to_month_last_day = calendar.monthrange(to_year, to_month_num)
+        from_date = date(from_year, from_month_num, 1)
+        to_date = date(to_year, to_month_num, to_month_last_day)
+        self.assert_dates_in_range(from_date, to_date)
+        from_date = pd.to_datetime(from_date)
+        to_date = pd.to_datetime(to_date)
+        presence_by_month: Dict[str, pd.DataFrame] = dict()
+        columns = ['בית ספר', 'מצבת'] + [MONTHS_IN_HEBREW[month_num] for month_num in
+                                         range(from_date.month, to_date.month + 1)]
+        all_schools_behavior = pd.DataFrame()
+        for school_id, school_data in self.schools_data.items():
+            school_name = school_data.name
+            school_behavior_df = school_data.behavior_report.copy()
+            school_behavior_df.insert(0, 'school_name', school_name)
+            school_behavior_df['level'] = school_behavior_df['class_num'].apply(
+                self.schools_data[school_id].get_level)
+            all_schools_behavior = pd.concat([all_schools_behavior, school_behavior_df])
+        from_date_filter = all_schools_behavior['lesson_date'] >= pd.to_datetime(from_date)
+        to_date_filter = all_schools_behavior['lesson_date'] <= pd.to_datetime(to_date)
+        period_all_schools_behavior = all_schools_behavior.loc[from_date_filter & to_date_filter]
+        no_archive_filter = period_all_schools_behavior['level'] != MashovServer.ClassLevel.ARCHIVES
+        behavior_no_archive_df = period_all_schools_behavior.loc[no_archive_filter]
+        level_groups = behavior_no_archive_df.groupby('level')
+        for level in level_groups.groups.keys():
+            presence_by_month_df = pd.DataFrame(columns=columns)
+            level_df = level_groups.get_group(level)
+            school_groups = level_df.groupby('school_name')
+            for school_name in school_groups.groups.keys():
+                school_df = school_groups.get_group(school_name)
+                num_of_students = school_df['student_id'].nunique()
+                school_data = {
+                    'בית ספר': school_name,
+                    'מצבת': num_of_students
+                }
+                month_groups = school_df.groupby(pd.Grouper(key='lesson_date', freq='M'))
+                for month_key in month_groups.groups.keys():
+                    month_df = month_groups.get_group(month_key)
+                    presence_filter = month_df['event_type'] == self.LessonEvents.PRESENCE
+                    month_presence = month_df.loc[presence_filter]
+                    lesson_date_groups = month_presence.groupby('lesson_date')
+                    num_of_average_presence = int(round(lesson_date_groups['lesson_date'].count().mean()))
+                    school_data[MONTHS_IN_HEBREW[month_key.month]] = num_of_average_presence
+                presence_by_month_df = presence_by_month_df.append(school_data, ignore_index=True)
+            presence_by_month[level] = presence_by_month_df
+        return presence_by_month
