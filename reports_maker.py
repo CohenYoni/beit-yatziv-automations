@@ -161,6 +161,9 @@ class ReportMaker:
                     school_class_data.set_organic_teacher(class_num, organic_teacher_name)
                     school_class_data.set_practitioner(class_num, practitioner_name)
                     school_class_data.set_level(class_num, class_level)
+                archives_class_num = school_class_data.num_of_active_classes + 1
+                archives_class_level = server.get_class_level(self.class_code, archives_class_num)
+                school_class_data.set_level(archives_class_num, archives_class_level)
                 self.schools_data[school_id] = school_class_data
             except Exception:
                 raise
