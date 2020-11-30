@@ -250,8 +250,8 @@ class ReportMaker:
 
     def create_presence_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         self.assert_dates_in_range(from_date, to_date)
-        from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT))
-        to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT))
+        from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+        to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
         const_columns = ['מורה אורגני', 'מתרגל', 'יח"ל', 'מצבת']
         periodic_attendance: Dict[str, pd.DataFrame] = dict()
         for school_id, school_data in self.schools_data.items():
@@ -260,8 +260,9 @@ class ReportMaker:
             to_date_filter = all_behaviors['lesson_date'] <= pd.to_datetime(to_date)
             period_behavior_report = all_behaviors.loc[from_date_filter & to_date_filter]
             school_name = school_data.name
-            lesson_dates = list(period_behavior_report['lesson_date'].dt.strftime(self.DATE_FORMAT).unique())
-            current_school_columns = const_columns + lesson_dates
+            week_groups = period_behavior_report.groupby(pd.Grouper(key='lesson_date', freq='W'))
+            current_weeks_columns = [self.get_date_range_of_week(w.year, w.week) for w in week_groups.groups.keys()]
+            current_school_columns = const_columns + current_weeks_columns
             current_school_df = pd.DataFrame(columns=current_school_columns)
             for class_num in range(1, school_data.num_of_active_classes + 1):
                 new_row_data = {
@@ -270,17 +271,23 @@ class ReportMaker:
                     'יח"ל': school_data.get_level(class_num),
                     'מצבת': school_data.get_num_of_students(class_num)
                 }
-                for lesson_date in lesson_dates:
-                    converted_lesson_date = pd.to_datetime(lesson_date, format=self.DATE_FORMAT)
-                    date_filter = period_behavior_report['lesson_date'] == converted_lesson_date
-                    presence_filter = period_behavior_report['event_type'] == self.LessonEvents.PRESENCE
-                    class_num_filter = period_behavior_report['class_num'] == class_num
-                    lesson_date_events = period_behavior_report.loc[date_filter & presence_filter & class_num_filter,
-                                                                    'student_id']
-                    num_of_presence = lesson_date_events.count()
-                    new_row_data[lesson_date] = num_of_presence
+                for week_key in week_groups.groups.keys():
+                    try:
+                        week_df = week_groups.get_group(week_key)
+                    except KeyError:  # there are no data for that week
+                        continue
+                    presence_filter = week_df['event_type'] == self.LessonEvents.PRESENCE
+                    class_num_filter = week_df['class_num'] == class_num
+                    week_events = week_df.loc[presence_filter & class_num_filter, ['student_id', 'lesson_date']]
+                    presence_events_in_week_groups = week_events.groupby('lesson_date')
+                    if presence_events_in_week_groups.groups.keys():  # calculate average presence in that week
+                        num_of_presence = int(round(presence_events_in_week_groups.nunique().mean()))
+                    else:  # there is no presence events in that lesson
+                        num_of_presence = 0
+                    week_column_name = self.get_date_range_of_week(week_key.year, week_key.week)
+                    new_row_data[week_column_name] = num_of_presence
                 current_school_df = current_school_df.append(new_row_data, ignore_index=True)
-            periodic_attendance[school_name] = current_school_df.replace(0, np.NaN)
+            periodic_attendance[school_name] = current_school_df
         return periodic_attendance
 
     def create_municipal_presence_report_by_levels(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
