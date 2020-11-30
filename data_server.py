@@ -125,7 +125,6 @@ class MashovServer:
         'תת': 2040
     }
     SEMESTER_EXAM_MAPPER = {
-        'begin_semester1': 'תחילת סמסטר א',
         'end_semester1': 'סוף סמסטר א',
         'begin_semester2': 'תחילת סמסטר ב',
         'end_semester2': 'סוף סמסטר ב'
@@ -383,7 +382,7 @@ class MashovServer:
 
         def parse_grades_json_res(grades_json: dict) -> pd.DataFrame:
             const_columns = ['student_id', 'school_name', 'student_name', 'class_code', 'class_num']
-            exams_columns = ['begin_semester1', 'end_semester1', 'begin_semester2', 'end_semester2']
+            exams_columns = ['end_semester1', 'begin_semester2', 'end_semester2']
             exam_name_to_column_mapper = {name: col for col, name in self.SEMESTER_EXAM_MAPPER.items()}
             df = pd.DataFrame(columns=const_columns + exams_columns)
             df.set_index('student_id', inplace=True)
