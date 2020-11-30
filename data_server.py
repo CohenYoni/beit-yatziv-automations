@@ -124,6 +124,12 @@ class MashovServer:
         'תשצט': 2039,
         'תת': 2040
     }
+    SEMESTER_EXAM_MAPPER = {
+        'begin_semester1': 'תחילת סמסטר א',
+        'end_semester1': 'סוף סמסטר א',
+        'begin_semester2': 'תחילת סמסטר ב',
+        'end_semester2': 'סוף סמסטר ב'
+    }
     CHROME_VERSION = '86.0.4240.198'
     CHROME_UA = f'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) ' \
                 f'Chrome/{CHROME_VERSION} Safari/537.36'
@@ -135,6 +141,7 @@ class MashovServer:
     LOGOUT_URL = f'{BASE_URL}/api/logout'
     FAILED_GRADE_THRESHOLD = 56
     DATE_FORMAT = '%d/%m/%Y'
+    EXAM_TYPE_WORD = 'מבחן'
 
     @staticmethod
     def map_heb_year_to_greg(heb_year: str) -> int:
@@ -374,44 +381,32 @@ class MashovServer:
     def get_grades_report(self, from_date: date, to_date: date, class_code: str) -> pd.DataFrame:
         self.assert_logged_in()
 
-        def map_grade_to_column(grade_json: dict) -> str:
-            date_format = '%Y-%m-%dT%H:%M:%S'
-            grading_event_json = grade_json.get('gradingEvent', {})
-            group_json = grade_json.get('group', {})
-            exam_type = grade_json.get('gradeType', {}).get('name', '')
-            exam_name = grading_event_json.get('name', '')
-            exam_subject = group_json.get('subjectName', '')
-            exam_date = grading_event_json.get('eDate', '')
-            try:
-                exam_date = datetime.strptime(exam_date, date_format).strftime('%d/%m/%Y')
-            except:
-                if exam_date:
-                    print(f'Warning: Student birthdate format changed! ("{exam_date}" instead of {date_format})')
-            column = f'{exam_type}|{exam_name}|{exam_date}|{exam_subject}'
-            return column
-
         def parse_grades_json_res(grades_json: dict) -> pd.DataFrame:
-            columns = ['student_id', 'student_name', 'class_code', 'class_num']
-            exams_columns = set()
-            df = pd.DataFrame(columns=columns)
+            const_columns = ['student_id', 'school_name', 'student_name', 'class_code', 'class_num']
+            exams_columns = ['begin_semester1', 'end_semester1', 'begin_semester2', 'end_semester2']
+            exam_name_to_column_mapper = {name: col for col, name in self.SEMESTER_EXAM_MAPPER.items()}
+            df = pd.DataFrame(columns=const_columns + exams_columns)
             df.set_index('student_id', inplace=True)
             for grade in grades_json:
-                exam_column = map_grade_to_column(grade)
-                exams_columns.add(exam_column)
-                if exam_column not in df.columns:
-                    df[exam_column] = ''
-                student_json = grade.get('student', {})
-                student_id = student_json.get('studentId', np.NaN)
-                if student_id and student_id not in df.index:
-                    new_student_data = {
-                        'student_name': f"{student_json.get('familyName', '')} {student_json.get('privateName', '')}",
-                        'class_code': student_json.get('classCode', ''),
-                        'class_num': student_json.get('classNum', '')
-                    }
-                    df = df.append(pd.DataFrame(new_student_data, index=[student_id]))
-                df.loc[student_id, exam_column] = grade.get('grade', {}).get('grade', np.NaN)
+                exam_type = grade.get('gradeType', {}).get('name', '')
+                if exam_type == self.EXAM_TYPE_WORD:
+                    exam_name = grade.get('gradingEvent', {}).get('name', '')
+                    exam_column = exam_name_to_column_mapper.get(exam_name)
+                    if exam_column:
+                        student_json = grade.get('student', {})
+                        student_id = student_json.get('studentId', np.NaN)
+                        if student_id and student_id not in df.index:
+                            family_name = student_json.get('familyName', '')
+                            private_name = student_json.get('privateName', '')
+                            new_student_data = {
+                                'student_name': f"{family_name} {private_name}",
+                                'class_code': student_json.get('classCode', ''),
+                                'class_num': student_json.get('classNum', ''),
+                                'school_name': self.school.name
+                            }
+                            df = df.append(pd.DataFrame(new_student_data, index=[student_id]))
+                        df.loc[student_id, exam_column] = grade.get('grade', {}).get('grade', np.NaN)
             df.replace('', np.NaN, inplace=True)
-            df['negatives'] = (df[exams_columns] < self.FAILED_GRADE_THRESHOLD).sum(axis=1)
             df.sort_index(inplace=True)
             df.rename(columns={df.index.name: 'student_id'}, inplace=True)
             return df
