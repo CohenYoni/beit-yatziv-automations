@@ -4,7 +4,6 @@ from typing import Dict, Sequence
 import pandas as pd
 import calendar
 
-
 MONTHS_IN_HEBREW = {
     1: 'ינואר',
     2: 'פברואר',
@@ -102,16 +101,20 @@ class ReportMaker:
         DISTURB = 'הפרעה'
 
     class Semester:
-        BEGIN_SEMESTER_1 = 'תחילת סמסטר א'
-        END_SEMESTER_1 = 'סוף סמסטר א'
-        BEGIN_SEMESTER_2 = 'תחילת סמסטר ב'
-        END_SEMESTER_2 = 'סוף סמסטר ב'
+        BEGIN_SEMESTER_1 = MashovServer.SEMESTER_EXAM_MAPPER['begin_semester1']
+        END_SEMESTER_1 = MashovServer.SEMESTER_EXAM_MAPPER['end_semester1']
+        BEGIN_SEMESTER_2 = MashovServer.SEMESTER_EXAM_MAPPER['begin_semester2']
+        END_SEMESTER_2 = MashovServer.SEMESTER_EXAM_MAPPER['end_semester2']
 
     HEB_WEEKDAYS = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
+    NUM_TO_HEB_CLASS_MAPPER = {num: code for num, code in enumerate('א ב ג ד ה ו ז ח ט י יא יב'.split(), 1)}
+    HEB_CLASS_TO_NUM_MAPPER = {code: num for num, code in enumerate('א ב ג ד ה ו ז ח ט י יא יב'.split(), 1)}
     HEB_DAYS_MAPPER = {idx: day for idx, day in enumerate(HEB_WEEKDAYS, 0)}
     NO_REMARKS = 'ללא הערות'
     FAIL_GRADE_THRESHOLD = 85
     NEGATIVE_GRADE_THRESHOLD = 56
+    GREEN_GRADE_THRESHOLD = 76
+    RED_GRADE_THRESHOLD = 55
     DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
@@ -137,6 +140,15 @@ class ReportMaker:
         rng = f'{week_first_date.strftime(ReportMaker.DATE_FORMAT)}-{week_last_date.strftime(ReportMaker.DATE_FORMAT)}'
         return rng
 
+    @staticmethod
+    def get_previous_class_code(class_code: str) -> str:
+        if class_code not in ReportMaker.HEB_CLASS_TO_NUM_MAPPER:
+            raise ValueError(f'{class_code} is not a valid class code!')
+        class_code_num = ReportMaker.HEB_CLASS_TO_NUM_MAPPER[class_code]
+        if class_code_num == 1:
+            raise ValueError(f'{class_code} is the first class!')
+        return ReportMaker.NUM_TO_HEB_CLASS_MAPPER[class_code_num - 1]
+
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
         self.schools_data: Dict[int, SchoolData] = {_id: None for _id in schools_ids}
         self.heb_year = heb_year
@@ -148,6 +160,7 @@ class ReportMaker:
         self._greg_year = MashovServer.map_heb_year_to_greg(self.heb_year)
         self._first_school_year_date = date(year=self._greg_year - 1, month=8, day=1)
         self._last_school_year_date = date(year=self._greg_year, month=11, day=30)
+        self._previous_heb_year = MashovServer.map_greg_year_to_heb(self._greg_year - 1)
 
     def fetch_data_from_server(self, from_date: date, to_date: date) -> None:
         assert from_date <= to_date, 'From date must be less than to date'
