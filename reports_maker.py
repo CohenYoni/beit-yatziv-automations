@@ -2,7 +2,6 @@ from data_server import MashovServer, School
 from datetime import datetime, date
 from typing import Dict, Sequence
 import pandas as pd
-import numpy as np
 import calendar
 
 
@@ -101,6 +100,12 @@ class ReportMaker:
         REINFORCEMENT = 'חיזוק חיובי'
         LATE = 'איחור'
         DISTURB = 'הפרעה'
+
+    class Semester:
+        BEGIN_SEMESTER_1 = 'תחילת סמסטר א',
+        END_SEMESTER_1 = 'סוף סמסטר א',
+        BEGIN_SEMESTER_2 = 'תחילת סמסטר ב',
+        END_SEMESTER_2 = 'סוף סמסטר ב'
 
     HEB_WEEKDAYS = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
     HEB_DAYS_MAPPER = {idx: day for idx, day in enumerate(HEB_WEEKDAYS, 0)}
