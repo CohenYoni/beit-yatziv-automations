@@ -101,7 +101,7 @@ class ReportMaker:
         DISTURB = 'הפרעה'
 
     class Semester:
-        BEGIN_SEMESTER_1 = MashovServer.SEMESTER_EXAM_MAPPER['begin_semester1']
+        BEGIN_YEAR_EXAM = 'תחילת שנה'
         END_SEMESTER_1 = MashovServer.SEMESTER_EXAM_MAPPER['end_semester1']
         BEGIN_SEMESTER_2 = MashovServer.SEMESTER_EXAM_MAPPER['begin_semester2']
         END_SEMESTER_2 = MashovServer.SEMESTER_EXAM_MAPPER['end_semester2']
