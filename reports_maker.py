@@ -291,7 +291,6 @@ class ReportMaker:
         return periodic_attendance
 
     def create_municipal_presence_report_by_levels(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
-        const_columns = ['בית ספר', 'מצבת']
         unwanted_columns = ['מתרגל', 'מורה אורגני']
         schools_presence_report = self.create_presence_report_by_schools(from_date, to_date)
         for school_name, school_data_df in schools_presence_report.items():
@@ -304,9 +303,6 @@ class ReportMaker:
             level_group = level_groups.get_group(level).drop('יח"ל', axis=1)
             schools_groups = level_group.groupby('בית ספר')
             each_school_in_row_df = schools_groups.sum().astype(int).reset_index()
-            each_school_in_row_df = self.sort_datetime_columns_names(each_school_in_row_df,
-                                                                     const_columns,
-                                                                     self.DATE_FORMAT)
             municipal_presence_by_levels[level] = each_school_in_row_df
         return municipal_presence_by_levels
 
