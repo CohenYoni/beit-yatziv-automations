@@ -381,7 +381,7 @@ class MashovServer:
         self.assert_logged_in()
 
         def parse_grades_json_res(grades_json: dict) -> pd.DataFrame:
-            const_columns = ['student_id', 'school_name', 'student_name', 'class_code', 'class_num']
+            const_columns = ['student_id', 'school_name', 'student_name', 'class_code', 'class_num', 'level']
             exams_columns = ['end_semester1', 'begin_semester2', 'end_semester2']
             exam_name_to_column_mapper = {name: col for col, name in self.SEMESTER_EXAM_MAPPER.items()}
             df = pd.DataFrame(columns=const_columns + exams_columns)
@@ -397,17 +397,22 @@ class MashovServer:
                         if student_id and student_id not in df.index:
                             family_name = student_json.get('familyName', '')
                             private_name = student_json.get('privateName', '')
+                            student_class_code = student_json.get('classCode', '')
+                            student_class_num = student_json.get('classNum', '')
                             new_student_data = {
                                 'student_name': f"{family_name} {private_name}",
-                                'class_code': student_json.get('classCode', ''),
-                                'class_num': student_json.get('classNum', ''),
-                                'school_name': self.school.name
+                                'class_code': student_class_code,
+                                'class_num': student_class_num,
+                                'school_name': self.school.name,
+                                'level': self.get_class_level(student_class_code, student_class_num)
                             }
                             df = df.append(pd.DataFrame(new_student_data, index=[student_id]))
                         df.loc[student_id, exam_column] = grade.get('grade', {}).get('grade', np.NaN)
             df.replace('', np.NaN, inplace=True)
             df.sort_index(inplace=True)
             df.rename(columns={df.index.name: 'student_id'}, inplace=True)
+            no_archives_filter = df['level'] != self.ClassLevel.ARCHIVES
+            df = df.loc[no_archives_filter]
             return df
 
         encoded_class = urllib.parse.quote(class_code)
