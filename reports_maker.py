@@ -341,7 +341,10 @@ class ReportMaker:
                 }
                 month_groups = school_df.groupby(pd.Grouper(key='lesson_date', freq='M'))
                 for month_key in month_groups.groups.keys():
-                    month_df = month_groups.get_group(month_key)
+                    try:
+                        month_df = month_groups.get_group(month_key)
+                    except KeyError:  # there is no data for that month
+                        continue
                     presence_filter = month_df['event_type'] == self.LessonEvents.PRESENCE
                     month_presence = month_df.loc[presence_filter]
                     lesson_date_groups = month_presence.groupby('lesson_date')
