@@ -102,9 +102,9 @@ class ReportMaker:
         DISTURB = 'הפרעה'
 
     class Semester:
-        BEGIN_SEMESTER_1 = 'תחילת סמסטר א',
-        END_SEMESTER_1 = 'סוף סמסטר א',
-        BEGIN_SEMESTER_2 = 'תחילת סמסטר ב',
+        BEGIN_SEMESTER_1 = 'תחילת סמסטר א'
+        END_SEMESTER_1 = 'סוף סמסטר א'
+        BEGIN_SEMESTER_2 = 'תחילת סמסטר ב'
         END_SEMESTER_2 = 'סוף סמסטר ב'
 
     HEB_WEEKDAYS = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
