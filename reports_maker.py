@@ -125,6 +125,13 @@ class ReportMaker:
         datetime_names_columns.columns = [datetime.strftime(d, datetime_format) for d in datetime_names_columns.columns]
         return pd.concat([non_datetime_names_columns, datetime_names_columns], axis=1)
 
+    @staticmethod
+    def get_date_range_of_week(year: int, week_number: int) -> str:
+        week_first_date = date.fromisocalendar(year, week_number, 1)
+        week_last_date = date.fromisocalendar(year, week_number, 7)
+        rng = f'{week_first_date.strftime(ReportMaker.DATE_FORMAT)}-{week_last_date.strftime(ReportMaker.DATE_FORMAT)}'
+        return rng
+
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
         self.schools_data: Dict[int, SchoolData] = {_id: None for _id in schools_ids}
         self.heb_year = heb_year
