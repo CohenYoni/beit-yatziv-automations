@@ -26,7 +26,8 @@ class SchoolData(School):
         self.class_code = class_code
         self._behavior_report = None
         self._phonebook = None
-        self._grades_report = None
+        self._semesters_grades_report = None
+        self._all_grades_report = None
         self._organic_teachers: Dict[int, str] = dict()
         self._practitioners: Dict[int, str] = dict()
         self._levels: Dict[int, str] = dict()
@@ -50,12 +51,20 @@ class SchoolData(School):
         self._phonebook = phonebook
 
     @property
-    def grades_report(self) -> pd.DataFrame:
-        return self._grades_report
+    def semesters_grades_report(self) -> pd.DataFrame:
+        return self._semesters_grades_report
 
-    @grades_report.setter
-    def grades_report(self, grades_report: pd.DataFrame) -> None:
-        self._grades_report = grades_report
+    @semesters_grades_report.setter
+    def semesters_grades_report(self, semesters_grades_report: pd.DataFrame) -> None:
+        self._semesters_grades_report = semesters_grades_report
+
+    @property
+    def all_grades_report(self) -> pd.DataFrame:
+        return self._all_grades_report
+
+    @all_grades_report.setter
+    def all_grades_report(self, all_grades_report: pd.DataFrame) -> None:
+        self._all_grades_report = all_grades_report
 
     @property
     def num_of_active_classes(self):
@@ -185,13 +194,19 @@ class ReportMaker:
                                                                       to_date=to_date,
                                                                       class_code=self.class_code)
                 phonebook = server.get_students_phonebook(class_code=self.class_code)
-                grades_report = server.get_grades_report(from_date=from_date,
-                                                         to_date=to_date,
-                                                         class_code=self.class_code)
+                semesters_grades_report = server.get_grades_report(from_date=from_date,
+                                                                   to_date=to_date,
+                                                                   class_code=self.class_code,
+                                                                   exam_type=MashovServer.ExamType.SEMESTER_EXAM)
+                all_grades_report = server.get_grades_report(from_date=from_date,
+                                                             to_date=to_date,
+                                                             class_code=self.class_code,
+                                                             exam_type=MashovServer.ExamType.ALL)
                 school_class_data = SchoolData(school_id, server.school.name, self.class_code)
                 school_class_data.behavior_report = behavior_report
                 school_class_data.phonebook = phonebook
-                school_class_data.grades_report = grades_report
+                school_class_data.semesters_grades_report = semesters_grades_report
+                school_class_data.all_grades_report = all_grades_report
                 school_class_data.num_of_active_classes = server.get_num_of_active_classes(self.class_code)
                 for class_num in range(1, school_class_data.num_of_active_classes + 1):
                     organic_teacher_name = server.get_organic_teacher_name(self.class_code, class_num)
@@ -396,12 +411,13 @@ class ReportMaker:
             server.login(username=self.username, password=self.password)
             current_year_grades_df = server.get_grades_report(from_date=self._first_school_year_date,
                                                               to_date=self._last_school_year_date,
-                                                              class_code=self.class_code)
+                                                              class_code=self.class_code,
+                                                              exam_type=MashovServer.ExamType.SEMESTER_EXAM)
             server.logout()
             try:
                 server.school_year = self._previous_heb_year
                 there_is_prev_year = True
-            except TypeError:  # there is no data of previous year in the server
+            except TypeError:  # there are no data of previous year in the server
                 there_is_prev_year = False
             if there_is_prev_year:
                 prev_greg_year = self._greg_year - 1
@@ -410,7 +426,8 @@ class ReportMaker:
                 prev_class_code = self.get_previous_class_code(self.class_code)
                 server.login(username=self.username, password=self.password)
                 prev_year_grades_df = server.get_grades_report(from_date=prev_from_date, to_date=prev_to_date,
-                                                               class_code=prev_class_code)
+                                                               class_code=prev_class_code,
+                                                               exam_type=MashovServer.ExamType.SEMESTER_EXAM)
                 server.logout()
             else:
                 prev_year_grades_df = pd.DataFrame(columns=current_year_grades_df.columns,

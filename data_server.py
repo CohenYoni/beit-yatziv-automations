@@ -94,6 +94,10 @@ class MashovServer:
         NO_LEVEL = 'ללא'
         ARCHIVES = 'ארכיון'
 
+    class ExamType:
+        SEMESTER_EXAM = 1
+        ALL = 2
+
     HEB_TO_GREG_YEAR_MAPPER = {
         'תשעה': 2015,
         'תשעו': 2016,
@@ -377,10 +381,10 @@ class MashovServer:
         phonebook_df = pd.DataFrame(data, columns=columns)
         return phonebook_df
 
-    def get_grades_report(self, from_date: date, to_date: date, class_code: str) -> pd.DataFrame:
+    def get_grades_report(self, from_date: date, to_date: date, class_code: str, exam_type: int) -> pd.DataFrame:
         self.assert_logged_in()
 
-        def parse_grades_json_res(grades_json: dict) -> pd.DataFrame:
+        def parse_semesters_grades_json_res(grades_json: dict) -> pd.DataFrame:
             const_columns = ['school_name', 'student_name', 'class_code', 'class_num', 'level']
             exams_columns = ['end_semester1', 'begin_semester2', 'end_semester2']
             exam_name_to_column_mapper = {name: col for col, name in self.SEMESTER_EXAM_MAPPER.items()}
@@ -423,13 +427,60 @@ class MashovServer:
             df = df.loc[no_archives_filter]
             return df
 
+        def parse_all_grades_json_res(grades_json: dict) -> pd.DataFrame:
+            const_columns = ['school_name', 'student_id', 'student_name', 'class_code', 'class_num', 'level',
+                             'exam_date', 'exam_grade', 'exam_type', 'exam_name', 'exam_subject']
+            df = pd.DataFrame(columns=const_columns)
+            for grade in grades_json:
+                current_exam_type = grade.get('gradeType', {}).get('name', '')
+                exam_date = grade.get('gradingEvent', {}).get('eDate', '')
+                date_format = '%Y-%m-%dT%H:%M:%S'
+                try:
+                    exam_date = datetime.strptime(exam_date, date_format).strftime('%d/%m/%Y')
+                except:
+                    if exam_date:
+                        print(f'Warning: Exam date format changed! ("{exam_date}" instead of {date_format})')
+                student_json = grade.get('student', {})
+                student_id = student_json.get('studentId', pd.NA)
+                family_name = student_json.get('familyName', '')
+                private_name = student_json.get('privateName', '')
+                student_class_code = student_json.get('classCode', '')
+                student_class_num = student_json.get('classNum', '')
+                exam_grade = grade.get('grade', {}).get('grade', pd.NA)
+                exam_name = grade.get('gradingEvent', {}).get('name', pd.NA)
+                exam_subject = grade.get('group', {}).get('subjectName', pd.NA)
+                new_grade_data = {
+                    'school_name': self.school.name,
+                    'student_id': student_id,
+                    'student_name': f"{family_name} {private_name}",
+                    'class_code': student_class_code,
+                    'class_num': student_class_num,
+                    'level': self.get_class_level(student_class_code, student_class_num),
+                    'exam_date': exam_date,
+                    'exam_grade': exam_grade,
+                    'exam_type': current_exam_type,
+                    'exam_name': exam_name,
+                    'exam_subject': exam_subject
+                }
+                df = df.append(new_grade_data, ignore_index=True)
+            df.replace('', pd.NA, inplace=True)
+            no_archives_filter = df['level'] != self.ClassLevel.ARCHIVES
+            df = df.loc[no_archives_filter]
+            df.reset_index(inplace=True, drop=True)
+            return df
+
+        parser_mapper = {
+            self.ExamType.SEMESTER_EXAM: parse_semesters_grades_json_res,
+            self.ExamType.ALL: parse_all_grades_json_res
+        }
+
         encoded_class = urllib.parse.quote(class_code)
         from_date = f"{from_date.strftime('%Y-%m-%d')}T00:00:00Z"
         to_date = f"{to_date.strftime('%Y-%m-%d')}T23:59:59Z"
         grades_url = f'{self.BASE_URL}/api/classes/{encoded_class}/grades?start={from_date}&end={to_date}'
         grades_res = self._session.get(grades_url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
         json_grades_res = grades_res.json()
-        grades_df = parse_grades_json_res(json_grades_res)
+        grades_df = parser_mapper[exam_type](json_grades_res)
         return grades_df
 
     def get_classes_details(self):
