@@ -388,3 +388,59 @@ class ReportMaker:
                 presence_by_month_df = presence_by_month_df.append(school_data, ignore_index=True)
             presence_by_month[level] = presence_by_month_df
         return presence_by_month
+
+    def create_grades_colors_report_by_levels(self):
+        all_schools_grades_df = pd.DataFrame()
+        for school_id in self.schools_data.keys():
+            server = MashovServer(school_id=school_id, school_year=self.heb_year)
+            server.login(username=self.username, password=self.password)
+            current_year_grades_df = server.get_grades_report(from_date=self._first_school_year_date,
+                                                              to_date=self._last_school_year_date,
+                                                              class_code=self.class_code)
+            server.logout()
+            try:
+                server.school_year = self._previous_heb_year
+                there_is_prev_year = True
+            except TypeError:  # there is no data of previous year in the server
+                there_is_prev_year = False
+            if there_is_prev_year:
+                prev_greg_year = self._greg_year - 1
+                prev_from_date = self._first_school_year_date.replace(year=prev_greg_year - 1)
+                prev_to_date = self._last_school_year_date.replace(year=prev_greg_year)
+                prev_class_code = self.get_previous_class_code(self.class_code)
+                server.login(username=self.username, password=self.password)
+                prev_year_grades_df = server.get_grades_report(from_date=prev_from_date, to_date=prev_to_date,
+                                                               class_code=prev_class_code)
+                server.logout()
+            else:
+                prev_year_grades_df = pd.DataFrame(columns=current_year_grades_df.columns,
+                                                   index=current_year_grades_df.index)
+            prev_first_year_grade_df = prev_year_grades_df['end_semester2']
+            new_col_pos = current_year_grades_df.columns.get_loc('end_semester1')
+            current_year_grades_df.insert(new_col_pos, 'first_year', prev_first_year_grade_df)
+            all_schools_grades_df = pd.concat([all_schools_grades_df, current_year_grades_df])
+        grades_colors_by_level = dict()
+        levels_groups = all_schools_grades_df.groupby('level')
+        for level_key in levels_groups.groups.keys():
+            level_df = levels_groups.get_group(level_key)
+            schools_grades = dict()
+            schools_groups = level_df.groupby('school_name')
+            for school_key in schools_groups.groups.keys():
+                school_df = schools_groups.get_group(school_key)
+                exam_periods = dict()
+                for exam_period_key, exam_period_col in self.SEMESTER_EXAMS_MAPPER.items():
+                    red_filter = school_df[exam_period_key] <= self.RED_GRADE_THRESHOLD
+                    low_orange_filter = school_df[exam_period_key] > self.RED_GRADE_THRESHOLD
+                    high_orange_filter = school_df[exam_period_key] < self.GREEN_GRADE_THRESHOLD
+                    green_filter = school_df[exam_period_key] >= self.GREEN_GRADE_THRESHOLD
+                    num_of_red = school_df[red_filter][exam_period_key].count()
+                    num_of_orange = school_df[high_orange_filter & low_orange_filter][exam_period_key].count()
+                    num_of_green = school_df[green_filter][exam_period_key].count()
+                    columns = list(self.GRADES_COLORS_MAPPER.values()) + ['סה"כ', ]
+                    data = [num_of_red, num_of_orange, num_of_green]
+                    sum_of_grades = sum(data)
+                    data.append(sum_of_grades)
+                    exam_periods[exam_period_col] = pd.DataFrame([data], columns=columns)
+                schools_grades[school_key] = exam_periods
+            grades_colors_by_level[level_key] = schools_grades
+        return grades_colors_by_level
