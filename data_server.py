@@ -381,11 +381,19 @@ class MashovServer:
         self.assert_logged_in()
 
         def parse_grades_json_res(grades_json: dict) -> pd.DataFrame:
-            const_columns = ['student_id', 'school_name', 'student_name', 'class_code', 'class_num', 'level']
+            const_columns = ['school_name', 'student_name', 'class_code', 'class_num', 'level']
             exams_columns = ['end_semester1', 'begin_semester2', 'end_semester2']
             exam_name_to_column_mapper = {name: col for col, name in self.SEMESTER_EXAM_MAPPER.items()}
-            df = pd.DataFrame(columns=const_columns + exams_columns)
-            df.set_index('student_id', inplace=True)
+            phonebook = self.get_students_phonebook(class_code)
+            phonebook['student_id'] = pd.to_numeric(phonebook['student_id'])
+            phonebook.set_index('student_id', inplace=True)
+            phonebook['student_name'] = phonebook['family_name'] + ' ' + phonebook['private_name']
+            phonebook['school_name'] = self.school.name
+            phonebook['level'] = phonebook.apply(
+                lambda row: self.get_class_level(row['class_code'], row['class_num']), axis=1
+            )
+            df = pd.DataFrame(columns=const_columns + exams_columns, index=pd.Index([], name='student_id'))
+            df = df.append(phonebook[const_columns])
             for grade in grades_json:
                 exam_type = grade.get('gradeType', {}).get('name', '')
                 if exam_type == self.EXAM_TYPE_WORD:
