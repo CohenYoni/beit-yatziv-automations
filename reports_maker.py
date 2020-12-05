@@ -110,11 +110,22 @@ class ReportMaker:
     NUM_TO_HEB_CLASS_MAPPER = {num: code for num, code in enumerate('א ב ג ד ה ו ז ח ט י יא יב'.split(), 1)}
     HEB_CLASS_TO_NUM_MAPPER = {code: num for num, code in enumerate('א ב ג ד ה ו ז ח ט י יא יב'.split(), 1)}
     HEB_DAYS_MAPPER = {idx: day for idx, day in enumerate(HEB_WEEKDAYS, 0)}
+    SEMESTER_EXAMS_MAPPER = {
+        'first_year': Semester.BEGIN_YEAR_EXAM,
+        'end_semester1': Semester.END_SEMESTER_1,
+        'begin_semester2': Semester.BEGIN_SEMESTER_2,
+        'end_semester2': Semester.END_SEMESTER_2
+    }
     NO_REMARKS = 'ללא הערות'
     FAIL_GRADE_THRESHOLD = 85
     NEGATIVE_GRADE_THRESHOLD = 56
     GREEN_GRADE_THRESHOLD = 76
     RED_GRADE_THRESHOLD = 55
+    GRADES_COLORS_MAPPER = {
+        'red': f'אדום (קטן מ-{RED_GRADE_THRESHOLD})',
+        'orange': f'כתום (בין {RED_GRADE_THRESHOLD + 1} ל-{GREEN_GRADE_THRESHOLD - 1})',
+        'green': f'ירוק (מעל {GREEN_GRADE_THRESHOLD})'
+    }
     DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
