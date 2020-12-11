@@ -569,3 +569,38 @@ class ReportMaker:
             school_summary_df['הערות'] = pd.NA
             schools_summary[school_key] = school_summary_df
         return schools_summary
+
+    def create_raw_behavior_report(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
+        raw_behavior_by_schools = dict()
+        for school_id in self.schools_data.keys():
+            behavior_df = self.schools_data[school_id].behavior_report.copy()
+            from_date = pd.self(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            from_date_filter = behavior_df['lesson_date'] >= pd.to_datetime(from_date)
+            to_date_filter = behavior_df['lesson_date'] <= pd.to_datetime(to_date)
+            behavior_df = behavior_df.loc[from_date_filter & to_date_filter]
+            behavior_df['level'] = behavior_df['class_num'].apply(self.schools_data[school_id].get_level)
+            behavior_df['practitioner'] = behavior_df['class_num'].apply(
+                self.schools_data[school_id].get_practitioner)
+            no_archive_filter = behavior_df['level'] != MashovServer.ClassLevel.ARCHIVES
+            behavior_df = behavior_df.loc[no_archive_filter]
+            column_names_mapper = {
+                'teacher_name': 'שם המורה',
+                'subject': 'מקצוע',
+                'lesson_date': 'תאריך',
+                'lesson_num': 'מספר שיעור',
+                'student_id': 'ת.ז',
+                'student_name': 'שם התלמיד',
+                'class_code': 'שכבה',
+                'class_num': 'כיתה',
+                'event_type': 'סוג האירוע',
+                'remark': 'הערה מילולית',
+                'justified_by': 'הוצדק ע"י',
+                'justification': 'הצדקה',
+                'level': 'יח"ל',
+                'practitioner': 'מתרגל',
+            }
+            behavior_df.rename(columns=column_names_mapper, inplace=True)
+            behavior_df.reset_index(drop=True, inplace=True)
+            raw_behavior_by_schools[self.schools_data[school_id].name] = behavior_df
+        return raw_behavior_by_schools
