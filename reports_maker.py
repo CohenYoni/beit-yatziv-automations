@@ -574,7 +574,7 @@ class ReportMaker:
         raw_behavior_by_schools = dict()
         for school_id in self.schools_data.keys():
             behavior_df = self.schools_data[school_id].behavior_report.copy()
-            from_date = pd.self(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             from_date_filter = behavior_df['lesson_date'] >= pd.to_datetime(from_date)
             to_date_filter = behavior_df['lesson_date'] <= pd.to_datetime(to_date)
@@ -638,3 +638,45 @@ class ReportMaker:
         sum_data = ['ממוצע נוכחות עירוני'] + [f'{avg}%' for avg in sum_data]
         avg_presence_report.loc[len(avg_presence_report)] = sum_data
         return avg_presence_report
+
+    def create_presence_distribution_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+
+        def count_by_event(df: pd.DataFrame, event_type: str):
+            presence_counter_filter = df['סוג האירוע'] == event_type
+            return df.loc[presence_counter_filter, 'ת.ז'].count()
+
+        def calculate_student_presence(df: pd.DataFrame, num_of_lessons: int):
+            date_groups = df.groupby('תאריך')
+            num_of_presence = date_groups.apply(
+                lambda lesson_date: count_by_event(
+                    lesson_date, self.LessonEvents.PRESENCE) >= count_by_event(lesson_date, self.LessonEvents.MISSING
+                                                                               )).sum()  # false === 0, true === 1
+            return int(round((num_of_presence / num_of_lessons) * 100)) if num_of_lessons != 0 else pd.NA
+
+        behavior_df = self.create_raw_behavior_report(from_date, to_date)
+        presence_distribution = pd.DataFrame(columns=['בית ספר', 'X>75%', '50%<X<75%', '10%<X<50%', 'X<10%', 'סה"כ'])
+        for school_name, school_df in behavior_df.items():
+            student_groups = school_df.groupby('ת.ז')
+            student_presence = student_groups.apply(
+                lambda student: calculate_student_presence(student, school_df['תאריך'].nunique()))
+            if student_presence.empty:
+                continue
+            student_presence = student_presence.to_frame(name='average_presence')
+            above_75 = (75 < student_presence).sum().iloc[0]
+            from_50_to_75 = ((50 < student_presence) & (student_presence <= 75)).sum().iloc[0]
+            from_10_to_50 = ((10 < student_presence) & (student_presence <= 50)).sum().iloc[0]
+            under_10 = (student_presence <= 10).sum().iloc[0]
+            total = above_75 + from_50_to_75 + from_10_to_50 + under_10
+            data = {
+                'בית ספר': school_name,
+                'X>75%': above_75,
+                '50%<X<75%': from_50_to_75,
+                '10%<X<50%': from_10_to_50,
+                'X<10%': under_10,
+                'סה"כ': total,
+            }
+            presence_distribution = presence_distribution.append(data, ignore_index=True)
+        sum_data = presence_distribution.drop('בית ספר', axis=1).sum().astype(int)
+        sum_data = ['סה"כ'] + list(sum_data)
+        presence_distribution.loc[len(presence_distribution)] = sum_data
+        return presence_distribution
