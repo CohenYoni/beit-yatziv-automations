@@ -1,5 +1,5 @@
+from datetime import datetime, date, timedelta
 from data_server import MashovServer, School
-from datetime import datetime, date
 from typing import Dict, Sequence
 import pandas as pd
 import calendar
@@ -155,8 +155,8 @@ class ReportMaker:
 
     @staticmethod
     def get_date_range_of_week(year: int, week_number: int) -> str:
-        week_first_date = date.fromisocalendar(year, week_number, 1)
-        week_last_date = date.fromisocalendar(year, week_number, 7)
+        week_first_date = date.fromisocalendar(year, week_number, 1) - timedelta(days=1)
+        week_last_date = date.fromisocalendar(year, week_number, 7) - timedelta(days=1)
         rng = f'{week_first_date.strftime(ReportMaker.DATE_FORMAT)}-{week_last_date.strftime(ReportMaker.DATE_FORMAT)}'
         return rng
 
