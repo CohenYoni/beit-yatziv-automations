@@ -604,3 +604,37 @@ class ReportMaker:
             behavior_df.reset_index(drop=True, inplace=True)
             raw_behavior_by_schools[self.schools_data[school_id].name] = behavior_df
         return raw_behavior_by_schools
+
+    def create_municipal_average_presence_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+        summary_by_schools = self.create_summary_report_by_school(from_date, to_date)
+        avg_presence_report = pd.DataFrame()
+        for school_name, school_df in summary_by_schools.items():
+            # timedelta - to start week at sunday instead of monday, so Grouper by week will be correct
+            school_df['תאריך שיעור'] = school_df['תאריך שיעור'].dt.date + timedelta(days=1)
+            school_df['תאריך שיעור'] = pd.to_datetime(school_df['תאריך שיעור'], format='%Y-%m-%d')
+            # end
+            week_groups = school_df.groupby(pd.Grouper(key='תאריך שיעור', freq='W'))
+            average_presence = week_groups.apply(
+                lambda week: pd.to_numeric(week['אחוז נוכחות'].str.replace('%', '')).mean())
+            average_presence = average_presence.fillna(0).apply(round).astype('int64').replace(0, pd.NA)
+            average_presence = average_presence.apply(lambda val: val if pd.isna(val) else f'{int(val)}%')
+            average_presence = average_presence.reset_index(name='average')
+            # change back timedelta
+            average_presence['תאריך שיעור'] = average_presence['תאריך שיעור'].dt.date - timedelta(days=1)
+            average_presence['תאריך שיעור'] = pd.to_datetime(average_presence['תאריך שיעור'], format='%Y-%m-%d')
+            # end
+            average_presence['תאריך שיעור'] = average_presence['תאריך שיעור'].apply(
+                lambda row: self.get_date_range_of_week(row.year, row.week))
+            average_presence['תאריך שיעור'] = 'השתתפות ' + average_presence['תאריך שיעור']
+            average_presence = average_presence.rename(columns={'תאריך שיעור': 'date'}).transpose()
+            average_presence.columns = average_presence.loc['date']
+            average_presence.drop('date', axis=0, inplace=True)
+            average_presence.insert(0, 'בית ספר', school_name)
+            average_presence.reset_index(drop=True, inplace=True)
+            average_presence.columns.name = ''
+            avg_presence_report = pd.concat([avg_presence_report, average_presence], ignore_index=True)
+        sum_data = avg_presence_report.drop('בית ספר', axis=1
+                                            ).replace('%', '', regex=True).astype('float64').mean().apply(round)
+        sum_data = ['ממוצע נוכחות עירוני'] + [f'{avg}%' for avg in sum_data]
+        avg_presence_report.loc[len(avg_presence_report)] = sum_data
+        return avg_presence_report
