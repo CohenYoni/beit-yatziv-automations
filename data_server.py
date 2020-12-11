@@ -467,6 +467,7 @@ class MashovServer:
             no_archives_filter = df['level'] != self.ClassLevel.ARCHIVES
             df = df.loc[no_archives_filter]
             df.reset_index(inplace=True, drop=True)
+            df['exam_date'] = pd.to_datetime(df['exam_date'], format='%d/%m/%Y')
             return df
 
         parser_mapper = {
