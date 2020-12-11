@@ -461,3 +461,111 @@ class ReportMaker:
                 schools_grades[school_key] = exam_periods
             grades_colors_by_level[level_key] = schools_grades
         return grades_colors_by_level
+
+    def create_summary_report_by_school(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
+        self.assert_dates_in_range(from_date, to_date)
+        all_schools_behavior_df = pd.DataFrame()
+        school_name_to_id_mapper = dict()
+        for school_id in self.schools_data.keys():
+            behavior_df = self.schools_data[school_id].behavior_report.copy()
+            school_name = self.schools_data[school_id].name
+            behavior_df['school_name'] = school_name
+            school_name_to_id_mapper[school_name] = school_id
+            all_schools_behavior_df = pd.concat([all_schools_behavior_df, behavior_df])
+        from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+        to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+        from_date_filter = all_schools_behavior_df['lesson_date'] >= pd.to_datetime(from_date)
+        to_date_filter = all_schools_behavior_df['lesson_date'] <= pd.to_datetime(to_date)
+        period_behavior_report = all_schools_behavior_df.loc[from_date_filter & to_date_filter]
+        required_columns = ['lesson_date', 'school_name', 'class_num', 'lesson_num', 'student_id', 'event_type']
+        period_behavior_report = period_behavior_report[required_columns]
+        schools_groups = period_behavior_report.groupby('school_name')
+        schools_summary = dict()
+        for school_key in schools_groups.groups.keys():
+            school_id = school_name_to_id_mapper[school_key]
+            school_details_df = schools_groups.get_group(school_key)
+            school_details_df['level'] = school_details_df['class_num'].apply(
+                self.schools_data[school_id].get_level)
+            no_archive_filter = school_details_df['level'] != MashovServer.ClassLevel.ARCHIVES
+            school_details_df = school_details_df.loc[no_archive_filter]
+            lesson_groups = school_details_df.groupby(['class_num', 'lesson_date', 'lesson_num'])
+            school_summary_df = pd.DataFrame()
+            total_num_students = lesson_groups.apply(lambda group: group['student_id'].nunique())
+            school_summary_df['מצבת'] = total_num_students
+            num_of_presence = lesson_groups.apply(
+                lambda group: group.loc[
+                    group['event_type'] == self.LessonEvents.PRESENCE, 'student_id'].nunique())
+            school_summary_df['נוכחים'] = num_of_presence
+            num_of_missing = lesson_groups.apply(
+                lambda group: group.loc[
+                    group['event_type'] == self.LessonEvents.MISSING, 'student_id'].nunique())
+            school_summary_df['חיסורים'] = num_of_missing
+            num_of_disturbs = lesson_groups.apply(
+                lambda group: group.loc[
+                    group['event_type'] == self.LessonEvents.DISTURB, 'student_id'].nunique())
+            school_summary_df['הפרעה'] = num_of_disturbs
+            school_summary_df['אחוז נוכחות'] = round(
+                (school_summary_df['נוכחים'] / school_summary_df['מצבת']) * 100).astype(int).astype(str) + '%'
+            all_grades_report_df = self.schools_data[school_id].all_grades_report.copy()
+            from_date_filter = all_grades_report_df['exam_date'] >= pd.to_datetime(from_date)
+            to_date_filter = all_grades_report_df['exam_date'] <= pd.to_datetime(to_date)
+            period_grades_report = all_grades_report_df.loc[from_date_filter & to_date_filter]
+            period_grades_report.rename(columns={'exam_date': 'lesson_date'}, inplace=True)
+            grades_groups = period_grades_report.groupby(['class_num', 'lesson_date'])
+            num_of_testing_students = grades_groups.apply(lambda group: group['student_id'].nunique())
+            num_of_failed_students = grades_groups.apply(lambda group: group.loc[
+                group['exam_grade'] < self.FAIL_GRADE_THRESHOLD, 'student_id'].nunique())
+            grps_to_max_lesson_num = school_summary_df.reset_index().groupby(['class_num', 'lesson_date'])
+            max_lesson_num = grps_to_max_lesson_num.apply(lambda grp: grp['lesson_num'].max())
+            grades_summary_df = pd.DataFrame()
+            grades_summary_df['lesson_num'] = max_lesson_num
+            if num_of_testing_students.empty:
+                num_of_testing_students = pd.Series()
+            if num_of_failed_students.empty:
+                num_of_failed_students = pd.Series()
+            grades_summary_df['מגישים'] = num_of_testing_students
+            grades_summary_df[f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})'] = num_of_failed_students
+            grades_summary_df.set_index('lesson_num', append=True, inplace=True)
+            school_summary_df = school_summary_df.join(grades_summary_df)
+            school_summary_df.reset_index(inplace=True)
+            cols_to_replace = ['מצבת', 'נוכחים', 'חיסורים', 'הפרעה', 'מגישים',
+                               f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})']
+            school_summary_df[cols_to_replace] = school_summary_df[cols_to_replace].replace(0, pd.NA)
+            school_summary_df.sort_values(['lesson_date', 'class_num', 'lesson_num'], ascending=[True, True, True],
+                                          inplace=True, ignore_index=True)
+            date_range = f'{from_date.strftime(format=self.DATE_FORMAT)}-{to_date.strftime(format=self.DATE_FORMAT)}'
+            school_summary_df['טווח זמן'] = date_range
+            school_summary_df['יח"ל'] = school_summary_df['class_num'].apply(
+                self.schools_data[school_id].get_level)
+            school_summary_df['מורה אורגני'] = school_summary_df['class_num'].apply(
+                self.schools_data[school_id].get_organic_teacher)
+            school_summary_df['כיתה/קבוצת לימוד'] = school_summary_df['class_num'].apply(
+                self.schools_data[school_id].get_practitioner)
+            school_summary_df['שכבה'] = self.class_code
+            school_summary_df.rename(columns={
+                'lesson_date': 'תאריך שיעור',
+                'class_num': 'כיתה',
+                'lesson_num': 'מספר שיעור'
+            }, inplace=True)
+            cols_order = [
+                'טווח זמן',
+                'תאריך שיעור',
+                'שכבה',
+                'כיתה',
+                'מורה אורגני',
+                'כיתה/קבוצת לימוד',
+                'מספר שיעור',
+                'יח"ל',
+                'מצבת',
+                'נוכחים',
+                'חיסורים',
+                'מגישים',
+                f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})',
+                'הפרעה',
+                'אחוז נוכחות'
+            ]
+            school_summary_df = school_summary_df[cols_order]
+            school_summary_df['סיבת החיסורים וטיפול בהפרעות (ואסים)'] = pd.NA
+            school_summary_df['הערות'] = pd.NA
+            schools_summary[school_key] = school_summary_df
+        return schools_summary
