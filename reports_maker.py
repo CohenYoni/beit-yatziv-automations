@@ -169,6 +169,10 @@ class ReportMaker:
             raise ValueError(f'{class_code} is the first class!')
         return ReportMaker.NUM_TO_HEB_CLASS_MAPPER[class_code_num - 1]
 
+    @staticmethod
+    def datetime_to_str_in_columns(df_columns: Sequence, org_type) -> list:
+        return [c.strftime(ReportMaker.DATE_FORMAT) if type(c) == org_type else c for c in df_columns]
+
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
         self.schools_data: Dict[int, SchoolData] = {_id: None for _id in schools_ids}
         self.heb_year = heb_year
@@ -243,6 +247,7 @@ class ReportMaker:
             presence_df = presence_df.append(count_grp['event_type'], ignore_index=True)
             presence_df['בית ספר'] = [school_data.name]
             presence_summary_df = pd.concat([presence_summary_df, presence_df], ignore_index=True)
+        presence_summary_df.columns = self.datetime_to_str_in_columns(presence_summary_df.columns, pd.Timestamp)
         return presence_summary_df
 
     def create_events_without_remarks_report(self) -> pd.DataFrame:
@@ -353,8 +358,8 @@ class ReportMaker:
             municipal_presence_by_levels[level] = each_school_in_row_df
         return municipal_presence_by_levels
 
-    def create_presence_report_by_month(self, from_month_num: int, to_month_num: int,
-                                        from_year: int, to_year: int) -> Dict[str, pd.DataFrame]:
+    def create_presence_report_of_month_by_levels(self, from_month_num: int, to_month_num: int,
+                                                 from_year: int, to_year: int) -> Dict[str, pd.DataFrame]:
         to_month_week_day, to_month_last_day = calendar.monthrange(to_year, to_month_num)
         from_date = date(from_year, from_month_num, 1)
         to_date = date(to_year, to_month_num, to_month_last_day)
@@ -462,7 +467,7 @@ class ReportMaker:
             grades_colors_by_level[level_key] = schools_grades
         return grades_colors_by_level
 
-    def create_summary_report_by_school(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
+    def create_summary_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         self.assert_dates_in_range(from_date, to_date)
         all_schools_behavior_df = pd.DataFrame()
         school_name_to_id_mapper = dict()
@@ -570,7 +575,7 @@ class ReportMaker:
             schools_summary[school_key] = school_summary_df
         return schools_summary
 
-    def create_raw_behavior_report(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
+    def create_raw_behavior_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         raw_behavior_by_schools = dict()
         for school_id in self.schools_data.keys():
             behavior_df = self.schools_data[school_id].behavior_report.copy()
@@ -606,7 +611,7 @@ class ReportMaker:
         return raw_behavior_by_schools
 
     def create_municipal_average_presence_report(self, from_date: date, to_date: date) -> pd.DataFrame:
-        summary_by_schools = self.create_summary_report_by_school(from_date, to_date)
+        summary_by_schools = self.create_summary_report_by_schools(from_date, to_date)
         avg_presence_report = pd.DataFrame()
         for school_name, school_df in summary_by_schools.items():
             # timedelta - to start week at sunday instead of monday, so Grouper by week will be correct
@@ -653,7 +658,7 @@ class ReportMaker:
                                                                                )).sum()  # false === 0, true === 1
             return int(round((num_of_presence / num_of_lessons) * 100)) if num_of_lessons != 0 else pd.NA
 
-        behavior_df = self.create_raw_behavior_report(from_date, to_date)
+        behavior_df = self.create_raw_behavior_report_by_schools(from_date, to_date)
         presence_distribution = pd.DataFrame(columns=['בית ספר', 'X>75%', '50%<X<75%', '10%<X<50%', 'X<10%', 'סה"כ'])
         for school_name, school_df in behavior_df.items():
             student_groups = school_df.groupby('ת.ז')
