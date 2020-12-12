@@ -1,3 +1,4 @@
+xlsxwriter
 requests
 pandas
 numpy
