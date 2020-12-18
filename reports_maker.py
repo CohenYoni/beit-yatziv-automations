@@ -195,6 +195,14 @@ class ReportMaker:
         self._last_school_year_date = date(year=self._greg_year, month=11, day=30)
         self._previous_heb_year = MashovServer.map_greg_year_to_heb(self._greg_year - 1)
 
+    @property
+    def first_school_year_date(self) -> date:
+        return self._first_school_year_date
+
+    @property
+    def last_school_year_date(self) -> date:
+        return self._last_school_year_date
+
     def fetch_data_from_server(self, from_date: date, to_date: date) -> None:
         assert from_date <= to_date, 'From date must be less than to date'
         self.from_date = from_date
