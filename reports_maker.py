@@ -115,6 +115,15 @@ class ReportMaker:
         BEGIN_SEMESTER_2 = MashovServer.SEMESTER_EXAM_MAPPER['begin_semester2']
         END_SEMESTER_2 = MashovServer.SEMESTER_EXAM_MAPPER['end_semester2']
 
+        @staticmethod
+        def get_exams_list():
+            return [
+                ReportMaker.Semester.BEGIN_YEAR_EXAM,
+                ReportMaker.Semester.END_SEMESTER_1,
+                ReportMaker.Semester.BEGIN_SEMESTER_2,
+                ReportMaker.Semester.END_SEMESTER_2
+            ]
+
     HEB_WEEKDAYS = ['שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת', 'ראשון']
     NUM_TO_HEB_CLASS_MAPPER = {num: code for num, code in enumerate('א ב ג ד ה ו ז ח ט י יא יב'.split(), 1)}
     HEB_CLASS_TO_NUM_MAPPER = {code: num for num, code in enumerate('א ב ג ד ה ו ז ח ט י יא יב'.split(), 1)}
@@ -359,7 +368,7 @@ class ReportMaker:
         return municipal_presence_by_levels
 
     def create_presence_report_of_month_by_levels(self, from_month_num: int, to_month_num: int,
-                                                 from_year: int, to_year: int) -> Dict[str, pd.DataFrame]:
+                                                  from_year: int, to_year: int) -> Dict[str, pd.DataFrame]:
         to_month_week_day, to_month_last_day = calendar.monthrange(to_year, to_month_num)
         from_date = date(from_year, from_month_num, 1)
         to_date = date(to_year, to_month_num, to_month_last_day)
@@ -444,6 +453,7 @@ class ReportMaker:
         grades_colors_by_level = dict()
         levels_groups = all_schools_grades_df.groupby('level')
         for level_key in levels_groups.groups.keys():
+            all_schools_df = pd.DataFrame()
             level_df = levels_groups.get_group(level_key)
             schools_grades = dict()
             schools_groups = level_df.groupby('school_name')
@@ -464,7 +474,17 @@ class ReportMaker:
                     data.append(sum_of_grades)
                     exam_periods[exam_period_col] = pd.DataFrame([data], columns=columns)
                 schools_grades[school_key] = exam_periods
-            grades_colors_by_level[level_key] = schools_grades
+            for school_name, school_details in schools_grades.items():
+                curr_school_df = pd.DataFrame({'בית ספר': [school_name]})
+                for exam_key in self.Semester.get_exams_list():
+                    curr_school_df = pd.concat([curr_school_df, school_details[exam_key]], axis=1)
+                all_schools_df = pd.concat([all_schools_df, curr_school_df], ignore_index=True)
+            multi_columns = [('', 'בית ספר'), ]
+            for first_level_col in self.Semester.get_exams_list():
+                colors_cols = list(self.GRADES_COLORS_MAPPER.values()) + ['סה"כ', ]
+                multi_columns.extend([(first_level_col, grade_color_col) for grade_color_col in colors_cols])
+            all_schools_df.columns = pd.MultiIndex.from_tuples(multi_columns)
+            grades_colors_by_level[level_key] = all_schools_df
         return grades_colors_by_level
 
     def create_summary_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
