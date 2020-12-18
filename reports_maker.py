@@ -28,6 +28,8 @@ class SchoolData(School):
         self._phonebook = None
         self._semesters_grades_report = None
         self._all_grades_report = None
+        self._year_grades = None
+        self._prev_year_grades = None
         self._organic_teachers: Dict[int, str] = dict()
         self._practitioners: Dict[int, str] = dict()
         self._levels: Dict[int, str] = dict()
@@ -65,6 +67,22 @@ class SchoolData(School):
     @all_grades_report.setter
     def all_grades_report(self, all_grades_report: pd.DataFrame) -> None:
         self._all_grades_report = all_grades_report
+
+    @property
+    def year_grades(self) -> pd.DataFrame:
+        return self._year_grades
+
+    @year_grades.setter
+    def year_grades(self, year_grades: pd.DataFrame) -> None:
+        self._year_grades = year_grades
+
+    @property
+    def prev_year_grades(self) -> pd.DataFrame:
+        return self._prev_year_grades
+
+    @prev_year_grades.setter
+    def prev_year_grades(self, prev_year_grades: pd.DataFrame) -> None:
+        self._prev_year_grades = prev_year_grades
 
     @property
     def num_of_active_classes(self):
@@ -223,12 +241,30 @@ class ReportMaker:
                                                              to_date=to_date,
                                                              class_code=self.class_code,
                                                              exam_type=MashovServer.ExamType.ALL)
+                current_year_grades_df = server.get_grades_report(from_date=self._first_school_year_date,
+                                                                  to_date=self._last_school_year_date,
+                                                                  class_code=self.class_code,
+                                                                  exam_type=MashovServer.ExamType.SEMESTER_EXAM)
+                try:
+                    server.school_year = self._previous_heb_year  # will raise an exception if there is no prev year
+                    prev_greg_year = self._greg_year - 1
+                    prev_from_date = self._first_school_year_date.replace(year=prev_greg_year - 1)
+                    prev_to_date = self._last_school_year_date.replace(year=prev_greg_year)
+                    prev_class_code = self.get_previous_class_code(self.class_code)
+                    server.login(username=self.username, password=self.password)
+                    prev_year_grades_df = server.get_grades_report(from_date=prev_from_date, to_date=prev_to_date,
+                                                                   class_code=prev_class_code,
+                                                                   exam_type=MashovServer.ExamType.SEMESTER_EXAM)
+                except TypeError:  # there are no data of previous year in the server
+                    prev_year_grades_df = None
                 school_class_data = SchoolData(school_id, server.school.name, self.class_code)
                 school_class_data.behavior_report = behavior_report
                 school_class_data.phonebook = phonebook
                 school_class_data.semesters_grades_report = semesters_grades_report
                 school_class_data.all_grades_report = all_grades_report
                 school_class_data.num_of_active_classes = server.get_num_of_active_classes(self.class_code)
+                school_class_data.year_grades = current_year_grades_df
+                school_class_data.prev_year_grades = prev_year_grades_df
                 for class_num in range(1, school_class_data.num_of_active_classes + 1):
                     organic_teacher_name = server.get_organic_teacher_name(self.class_code, class_num)
                     practitioner_name = server.get_class_practitioner(self.class_code, class_num)
@@ -426,38 +462,22 @@ class ReportMaker:
             presence_by_month[level] = presence_by_month_df
         return presence_by_month
 
-    def create_grades_colors_report_by_levels(self):
+    def get_all_schools_grades_df(self):
         all_schools_grades_df = pd.DataFrame()
         for school_id in self.schools_data.keys():
-            server = MashovServer(school_id=school_id, school_year=self.heb_year)
-            server.login(username=self.username, password=self.password)
-            current_year_grades_df = server.get_grades_report(from_date=self._first_school_year_date,
-                                                              to_date=self._last_school_year_date,
-                                                              class_code=self.class_code,
-                                                              exam_type=MashovServer.ExamType.SEMESTER_EXAM)
-            server.logout()
-            try:
-                server.school_year = self._previous_heb_year
-                there_is_prev_year = True
-            except TypeError:  # there are no data of previous year in the server
-                there_is_prev_year = False
-            if there_is_prev_year:
-                prev_greg_year = self._greg_year - 1
-                prev_from_date = self._first_school_year_date.replace(year=prev_greg_year - 1)
-                prev_to_date = self._last_school_year_date.replace(year=prev_greg_year)
-                prev_class_code = self.get_previous_class_code(self.class_code)
-                server.login(username=self.username, password=self.password)
-                prev_year_grades_df = server.get_grades_report(from_date=prev_from_date, to_date=prev_to_date,
-                                                               class_code=prev_class_code,
-                                                               exam_type=MashovServer.ExamType.SEMESTER_EXAM)
-                server.logout()
-            else:
+            current_year_grades_df = self.schools_data[school_id].year_grades.copy()
+            prev_year_grades_df = self.schools_data[school_id].prev_year_grades.copy()
+            if prev_year_grades_df is None:
                 prev_year_grades_df = pd.DataFrame(columns=current_year_grades_df.columns,
                                                    index=current_year_grades_df.index)
             prev_first_year_grade_df = prev_year_grades_df['end_semester2']
             new_col_pos = current_year_grades_df.columns.get_loc('end_semester1')
             current_year_grades_df.insert(new_col_pos, 'first_year', prev_first_year_grade_df)
             all_schools_grades_df = pd.concat([all_schools_grades_df, current_year_grades_df])
+        return all_schools_grades_df
+
+    def create_grades_colors_report_by_levels(self):
+        all_schools_grades_df = self.get_all_schools_grades_df()
         grades_colors_by_level = dict()
         levels_groups = all_schools_grades_df.groupby('level')
         for level_key in levels_groups.groups.keys():
