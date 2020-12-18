@@ -4,9 +4,8 @@ import xlsxwriter
 
 
 class SheetDataFrame:
-    def __init__(self, df: pd.DataFrame, sheet_name: str, first_row_header: str = None):
+    def __init__(self, df: pd.DataFrame, first_row_header: str = None):
         self.df = df
-        self.sheet_name = sheet_name
         self.first_row_header = first_row_header
 
     def get_col_widths(self, index: bool):
@@ -19,6 +18,12 @@ class SheetDataFrame:
         # Then, we concatenate this to the max of the lengths of column name and its values for each column
         columns_width = [max([len(str(s)) for s in df[col].values] + [len(col)]) for col in df.columns]
         return idx_max + columns_width if index else columns_width
+
+
+class Sheet:
+    def __init__(self, sheet_name: str, sheet_dataframes: Sequence[SheetDataFrame]):
+        self.sheet_name = sheet_name
+        self.sheet_dataframes = sheet_dataframes
 
 
 class DataFrameToExcel:
@@ -44,7 +49,7 @@ class DataFrameToExcel:
     def __init__(
             self,
             file_path: str,
-            sheet_dataframes: Sequence[SheetDataFrame],
+            sheets: Sequence[Sheet],
             date_format: str = 'dd/mm/yyyy',
             datetime_format: str = 'dd/mm/yyyy',
             with_index: bool = False,
@@ -59,7 +64,7 @@ class DataFrameToExcel:
             styled_header: bool = True
     ):
         self.file_path = file_path
-        self.sheet_dataframes = sheet_dataframes
+        self.sheets = sheets
         self.with_index = with_index
         self.styled_header = styled_header
         self.with_header = with_header
@@ -78,13 +83,15 @@ class DataFrameToExcel:
         }
         self.first_row_format_config = {
             'bold': header_bold,
+            'reading_order': 2
         }
         self.header_format_config = {
             'bold': header_bold,
             'text_wrap': self.header_text_wrap,
             'fg_color': header_color,
             'align': self.horizontal_align,
-            'valign': vertical_align
+            'valign': vertical_align,
+            'reading_order': 2
         }
         self.borders_format_config = {
             'bottom': self.BORDER_WIDTH,
@@ -124,49 +131,52 @@ class DataFrameToExcel:
             header_format = workbook.add_format(self.header_format_config)
             border_format = workbook.add_format(self.borders_format_config)
             first_row_format = workbook.add_format(self.first_row_format_config)
-            for sheet_df in self.sheet_dataframes:
-                sheet_name = sheet_df.sheet_name
-                df = sheet_df.df.copy()
-                first_row_header = sheet_df.first_row_header
-                data_start_row = 1 if self.with_header and self.styled_header else 0
-                if first_row_header:
-                    data_start_row += self.START_ROW_IF_SHEET_HEADER_EXISTS
-                has_multi_idx = type(df.columns) == pd.MultiIndex
-                first_row_multi_index = []
-                col_range_to_merge = dict()
-                if has_multi_idx:
-                    data_start_row += 1
-                    first_row_multi_index = self.get_multi_column_first_row(df)
-                    df.columns = df.columns.droplevel(0)
-                    col_range_to_merge = self.get_multi_column_range_to_merge(first_row_multi_index)
-                self.df_to_excel_config['startrow'] = data_start_row
-                styled_df = self.non_unique_col_idx_handler(df, {'text-align': self.horizontal_align})
-                styled_df.to_excel(writer, sheet_name=sheet_name, **self.df_to_excel_config)
-                worksheet = writer.sheets[sheet_name]
-                if self.with_header and self.styled_header:
-                    for col_num, value in enumerate(df.columns.values):
-                        if self.with_index:
-                            col_num += 1
-                        worksheet.write(data_start_row - 1, col_num, value, header_format)
-                if first_row_header:
-                    worksheet.write(0, 0, first_row_header, first_row_format)
-                first_row = data_start_row
-                if self.with_header and self.styled_header:
-                    first_row -= 1
-                last_row = first_row + len(df)
-                if not self.with_header:
-                    last_row -= 1
-                last_col = len(df.columns)
-                if not self.with_index:
-                    last_col -= 1
-                if has_multi_idx:
-                    first_row -= 1
-                    for first_col_idx, last_col_idx in col_range_to_merge.items():
-                        if first_col_idx < last_col_idx:
-                            data = first_row_multi_index[first_col_idx]
-                            worksheet.merge_range(first_row, first_col_idx, first_row, last_col_idx, data, header_format)
-                xl_range = xlsxwriter.utility.xl_range(first_row, 0, last_row, last_col)
-                worksheet.conditional_format(xl_range, {'type': 'no_errors', 'format': border_format})
-                worksheet.right_to_left()
-                for i, width in enumerate(sheet_df.get_col_widths(self.with_index)):
-                    worksheet.set_column(i, i, width)
+            for sheet in self.sheets:
+                sheet_name = sheet.sheet_name
+                current_start_row = 0
+                for sheet_df in sheet.sheet_dataframes:
+                    df = sheet_df.df.copy()
+                    first_row_header = sheet_df.first_row_header
+                    data_start_row = current_start_row + 1 if self.with_header and self.styled_header else current_start_row
+                    if first_row_header:
+                        data_start_row += self.START_ROW_IF_SHEET_HEADER_EXISTS
+                    has_multi_idx = type(df.columns) == pd.MultiIndex
+                    first_row_multi_index = []
+                    col_range_to_merge = dict()
+                    if has_multi_idx:
+                        data_start_row += 1
+                        first_row_multi_index = self.get_multi_column_first_row(df)
+                        df.columns = df.columns.droplevel(0)
+                        col_range_to_merge = self.get_multi_column_range_to_merge(first_row_multi_index)
+                    self.df_to_excel_config['startrow'] = data_start_row
+                    styled_df = self.non_unique_col_idx_handler(df, {'text-align': self.horizontal_align})
+                    styled_df.to_excel(writer, sheet_name=sheet_name, **self.df_to_excel_config)
+                    worksheet = writer.sheets[sheet_name]
+                    if self.with_header and self.styled_header:
+                        for col_num, value in enumerate(df.columns.values):
+                            if self.with_index:
+                                col_num += 1
+                            worksheet.write(data_start_row - 1, col_num, value, header_format)
+                    if first_row_header:
+                        worksheet.write(current_start_row, 0, first_row_header, first_row_format)
+                    first_row = data_start_row
+                    if self.with_header and self.styled_header:
+                        first_row -= 1
+                    last_row = first_row + len(df)
+                    if not self.with_header:
+                        last_row -= 1
+                    last_col = len(df.columns)
+                    if not self.with_index:
+                        last_col -= 1
+                    if has_multi_idx:
+                        first_row -= 1
+                        for first_col_idx, last_col_idx in col_range_to_merge.items():
+                            if first_col_idx < last_col_idx:
+                                data = first_row_multi_index[first_col_idx]
+                                worksheet.merge_range(first_row, first_col_idx, first_row, last_col_idx, data, header_format)
+                    xl_range = xlsxwriter.utility.xl_range(first_row, 0, last_row, last_col)
+                    worksheet.conditional_format(xl_range, {'type': 'no_errors', 'format': border_format})
+                    worksheet.right_to_left()
+                    for i, width in enumerate(sheet_df.get_col_widths(self.with_index)):
+                        worksheet.set_column(i, i, width)
+                    current_start_row += last_row + 2
