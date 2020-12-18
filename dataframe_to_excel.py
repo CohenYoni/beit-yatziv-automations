@@ -87,7 +87,19 @@ class DataFrameToExcel:
                 if first_row_header:
                     data_start_row += self.START_ROW_IF_SHEET_HEADER_EXISTS
                 self.df_to_excel_config['startrow'] = data_start_row
+                is_df_unique = True
+                if not df.index.is_unique or not df.columns.is_unique:
+                    is_df_unique = False
+                    org_idx = df.index
+                    org_cols = df.columns
+                    df.columns = [f'{col}{i}' for i, col in enumerate(df.columns)]
+                    df.reset_index(drop=True, inplace=True)
                 styled_df = df.style.set_properties(**{'text-align': self.horizontal_align})
+                if not is_df_unique:
+                    df.index = org_idx
+                    df.columns = org_cols
+                    styled_df = df.copy()
+                    is_df_unique = True
                 styled_df.to_excel(writer, sheet_name=sheet_name, **self.df_to_excel_config)
                 worksheet = writer.sheets[sheet_name]
                 if self.with_header and self.styled_header:
