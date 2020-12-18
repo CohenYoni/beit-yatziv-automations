@@ -530,6 +530,8 @@ class MashovServer:
 
     def get_organic_teacher_name(self, class_code: str, class_num: int) -> str:
         phonebook_df = self.get_students_phonebook(class_code)
+        if phonebook_df.empty:
+            return ''
         class_code_filter = phonebook_df['class_code'] == class_code
         class_num_filter = phonebook_df['class_num'] == class_num
         teachers_df = phonebook_df.loc[class_code_filter & class_num_filter, 'original_teacher']
