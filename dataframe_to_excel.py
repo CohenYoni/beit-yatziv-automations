@@ -188,3 +188,144 @@ class DataFrameToExcel:
                     current_start_row += len(df) + 2
                     if first_row_header:
                         current_start_row += self.START_ROW_IF_SHEET_HEADER_EXISTS
+
+
+class MashovReportsToExcel:
+    SCHOOLS = list(range(100151, 100158))
+    DESTINATION_FOLDER_NAME = 'דוחות משוב'
+
+    def __init__(self, heb_year: str, class_codes: Sequence[str], username: str, password: str,
+                 destination_folder_path: str):
+        self.class_codes = class_codes
+        self.heb_year = heb_year
+        self.report_makers_for_class = dict()
+        for class_code in self.class_codes:
+            report_maker = ReportMaker(self.SCHOOLS, heb_year, class_code, username, password)
+            report_maker.fetch_data_from_server(report_maker.first_school_year_date, report_maker.last_school_year_date)
+            self.report_makers_for_class[class_code] = report_maker
+        self.destination_folder_path = os.path.join(destination_folder_path, self.DESTINATION_FOLDER_NAME)
+        if os.path.exists(self.destination_folder_path):
+            shutil.rmtree(self.destination_folder_path)
+        os.makedirs(self.destination_folder_path)
+
+    def write_raw_behavior_report(self, from_date: date, to_date: date) -> None:
+        date_range_str = f'{from_date.strftime("%d.%m.%Y")}-{to_date.strftime("%d.%m.%Y")}'
+        for class_code, report_maker in self.report_makers_for_class.items():
+            file_name = f'דוח התנהגות שכבה {class_code} {date_range_str}.xlsx'
+            file_path = os.path.join(self.destination_folder_path, file_name)
+            sheets = []
+            school_behavior_data = report_maker.create_raw_behavior_report_by_schools(from_date, to_date)
+            for school_name, behavior_df in school_behavior_data.items():
+                sheet_name = f'{school_name} {class_code}'
+                header = f'דוח התנהגות {school_name}'
+                sheet = Sheet(sheet_name, [SheetDataFrame(behavior_df, header)])
+                sheets.append(sheet)
+            excel_writer = DataFrameToExcel(file_path=file_path, sheets=sheets)
+            excel_writer.write()
+
+    def write_summary_report(self, from_date: date, to_date: date) -> None:
+        date_range_str = f'{from_date.strftime("%d.%m.%Y")}-{to_date.strftime("%d.%m.%Y")}'
+        for class_code, report_maker in self.report_makers_for_class.items():
+            file_name = f'דוח סיכום שכבה {class_code} {date_range_str}.xlsx'
+            file_path = os.path.join(self.destination_folder_path, file_name)
+            sheets = []
+            municipal_average_presence_df = report_maker.create_municipal_average_presence_report(from_date, to_date)
+            municipal_average_presence_sheet_name = 'ממוצע נוכחות עירוני'
+            municipal_average_presence_header = f'{municipal_average_presence_sheet_name} - שכבה {class_code}'
+            municipal_average_presence_sheet = Sheet(
+                municipal_average_presence_sheet_name,
+                [SheetDataFrame(municipal_average_presence_df, municipal_average_presence_header)]
+            )
+            sheets.append(municipal_average_presence_sheet)
+            schools_data = report_maker.create_summary_report_by_schools(from_date, to_date)
+            for school_name, presence_df in schools_data.items():
+                presence_sheet_name = f'{school_name} {class_code}'
+                presence_header = f'דוח סיכום {school_name}'
+                presence_sheet = Sheet(presence_sheet_name, [SheetDataFrame(presence_df, presence_header)])
+                sheets.append(presence_sheet)
+            excel_writer = DataFrameToExcel(file_path=file_path, sheets=sheets)
+            excel_writer.write()
+
+    def write_mashov_report(self, from_date: date, to_date: date) -> None:
+        date_range_str = f'{from_date.strftime("%d.%m.%Y")}-{to_date.strftime("%d.%m.%Y")}'
+        for class_code, report_maker in self.report_makers_for_class.items():
+            file_name = f'דוח משוב שכבה {class_code} {date_range_str}.xlsx'
+            file_path = os.path.join(self.destination_folder_path, file_name)
+            sheets = []
+            presence_summary_df = report_maker.create_presence_summary_report(from_date, to_date)
+            presence_summary_sheet_name = f'סיכום נוכחות {class_code}'
+            presence_summary_header = f'דוח סיכום נוכחות שכבה {class_code}'
+            presence_summary_sheet = Sheet(
+                presence_summary_sheet_name, [SheetDataFrame(presence_summary_df, presence_summary_header)]
+            )
+            sheets.append(presence_summary_sheet)
+            events_without_remarks_df = report_maker.create_events_without_remarks_report(from_date, to_date)
+            events_without_remarks_sheet_name = f'אירועים בלי הערות {class_code}'
+            events_without_remarks_header = f'דוח אירועים בלי הערות שכבה {class_code}'
+            events_without_remarks_sheet = Sheet(
+                events_without_remarks_sheet_name,
+                [SheetDataFrame(events_without_remarks_df, events_without_remarks_header)]
+            )
+            sheets.append(events_without_remarks_sheet)
+            middle_week_lessons_df = report_maker.create_middle_week_lessons_report(from_date, to_date)
+            middle_week_lessons_sheet_name = f'לימודים שהתקיימו באמצע השבוע {class_code}'
+            middle_week_lessons_header = f'דוח לימודים שהתקיימו באמצע השבוע שכבה {class_code}'
+            middle_week_lessons_sheet = Sheet(
+                middle_week_lessons_sheet_name,
+                [SheetDataFrame(middle_week_lessons_df, middle_week_lessons_header)]
+            )
+            sheets.append(middle_week_lessons_sheet)
+            presence_distribution_df = report_maker.create_presence_distribution_report(from_date, to_date)
+            presence_distribution_sheet_name = f'התפלגות נוכחות {class_code}'
+            presence_distribution_header = f'דוח התפלגות נוכחות שכבה {class_code}'
+            presence_distribution_sheet = Sheet(
+                presence_distribution_sheet_name,
+                [SheetDataFrame(presence_distribution_df, presence_distribution_header)]
+            )
+            sheets.append(presence_distribution_sheet)
+            excel_writer = DataFrameToExcel(file_path=file_path, sheets=sheets)
+            excel_writer.write()
+
+    def write_periodical_report(self, from_date: date, to_date: date) -> None:
+        date_range_str = f'{from_date.strftime("%d.%m.%Y")}-{to_date.strftime("%d.%m.%Y")}'
+        for class_code, report_maker in self.report_makers_for_class.items():
+            file_name = f'דוח תקופתי שכבה {class_code} {date_range_str}.xlsx'
+            file_path = os.path.join(self.destination_folder_path, file_name)
+            sheets = []
+            presence_by_schools = report_maker.create_presence_report_by_schools(from_date, to_date)
+            dfs_in_sheet = []
+            presence_schools_sheet_name = f'ועדת היגוי לכל בי"ס {class_code}'
+            for school, school_df in presence_by_schools.items():
+                curr_df = SheetDataFrame(school_df, f'דוח ועדת היגוי תקופתי עירונית שכבה {class_code} {school}')
+                dfs_in_sheet.append(curr_df)
+            schools_sheet = Sheet(presence_schools_sheet_name, dfs_in_sheet)
+            sheets.append(schools_sheet)
+            municipal_presence_by_level = report_maker.create_municipal_presence_report_by_levels(from_date, to_date)
+            dfs_in_sheet = []
+            municipal_presence_sheet_name = f'ועדת היגוי עירונית {class_code}'
+            for level, level_df in municipal_presence_by_level.items():
+                curr_df = SheetDataFrame(level_df, f'דוח תקופתי ועדת היגוי עירונית שכבה {class_code} {level}')
+                dfs_in_sheet.append(curr_df)
+            municipal_presence_sheet = Sheet(municipal_presence_sheet_name, dfs_in_sheet)
+            sheets.append(municipal_presence_sheet)
+            grades_colors_by_level = report_maker.create_grades_colors_report_by_levels()
+            grades_sheet_name = f'שותפים - ציונים {class_code}'
+            dfs_in_sheet = []
+            for level, level_df in grades_colors_by_level.items():
+                curr_df = SheetDataFrame(level_df, f'דוח תקופתי ציונים סמסטריאלים שכבה {class_code} {level}')
+                dfs_in_sheet.append(curr_df)
+            grades_sheet = Sheet(grades_sheet_name, dfs_in_sheet)
+            sheets.append(grades_sheet)
+            monthly_presence_by_level = report_maker.create_presence_report_of_month_by_levels(from_date.month,
+                                                                                               to_date.month,
+                                                                                               from_date.year,
+                                                                                               to_date.year)
+            dfs_in_sheet = []
+            monthly_presence_sheet_name = f'שותפים - נוכחות {class_code}'
+            for level, level_df in monthly_presence_by_level.items():
+                curr_df = SheetDataFrame(level_df, f'דוח תקופתי נוכחות ממוצעת לפי חודש שכבה {class_code} {level}')
+                dfs_in_sheet.append(curr_df)
+            monthly_presence_sheet = Sheet(monthly_presence_sheet_name, dfs_in_sheet)
+            sheets.append(monthly_presence_sheet)
+            excel_writer = DataFrameToExcel(file_path=file_path, sheets=sheets)
+            excel_writer.write()
