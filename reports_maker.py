@@ -289,11 +289,16 @@ class ReportMaker:
                 class_num_students = school_data.behavior_report.loc[class_num_filter, 'student_id']
                 school_data.set_num_of_students(class_num, class_num_students.nunique())
 
-    def create_presence_summary_report(self) -> pd.DataFrame:
+    def create_presence_summary_report(self, from_date: date, to_date: date) -> pd.DataFrame:
         presence_summary_df = pd.DataFrame(columns=['בית ספר'])
         for school_id, school_data in self.schools_data.items():
             presence_filter = school_data.behavior_report['event_type'] == self.LessonEvents.PRESENCE
             presence_df = school_data.behavior_report.loc[presence_filter, ['lesson_date', 'event_type']]
+            from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            from_date_filter = presence_df['lesson_date'] >= pd.to_datetime(from_date)
+            to_date_filter = presence_df['lesson_date'] <= pd.to_datetime(to_date)
+            presence_df = presence_df.loc[from_date_filter & to_date_filter]
             presents_grp = presence_df.groupby(['lesson_date'])
             count_grp = presents_grp.agg('count')
             presence_df = pd.DataFrame(columns=count_grp.index.to_list())
@@ -303,12 +308,17 @@ class ReportMaker:
         presence_summary_df.columns = self.datetime_to_str_in_columns(presence_summary_df.columns, pd.Timestamp)
         return presence_summary_df
 
-    def create_events_without_remarks_report(self) -> pd.DataFrame:
+    def create_events_without_remarks_report(self, from_date: date, to_date: date) -> pd.DataFrame:
         columns = ['שם המורה', 'מקצוע', 'תאריך', 'מספר שיעור', 'שם התלמיד', 'שכבה', 'כיתה', 'סוג האירוע',
                    'הערה מילולית', 'הוצדק ע"י', 'הצדקה', 'בית ספר', 'יום']
         events_without_remarks = pd.DataFrame(columns=columns)
         for school_id, school_data in self.schools_data.items():
             no_remark_events_df = school_data.behavior_report.drop('student_id', axis=1)
+            from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            from_date_filter = no_remark_events_df['lesson_date'] >= pd.to_datetime(from_date)
+            to_date_filter = no_remark_events_df['lesson_date'] <= pd.to_datetime(to_date)
+            no_remark_events_df = no_remark_events_df.loc[from_date_filter & to_date_filter]
             event_filter = no_remark_events_df['event_type'] == self.LessonEvents.MISSING
             remark_filter = no_remark_events_df['remark'].fillna('') == ''
             justification_filter = no_remark_events_df['justification'] == self.NO_REMARKS
@@ -320,13 +330,18 @@ class ReportMaker:
             events_without_remarks = pd.concat([events_without_remarks, no_remark_events_df], ignore_index=True)
         return events_without_remarks
 
-    def create_middle_week_lessons_report(self) -> pd.DataFrame:
+    def create_middle_week_lessons_report(self, from_date: date, to_date: date) -> pd.DataFrame:
         columns = ['בית ספר', 'נוכחים', 'חיסורים', 'חיזוקים', 'איחור', 'הפרעה', 'מצבת']
         middle_week_lessons_df = pd.DataFrame(columns=columns)
         for school_id, school_data in self.schools_data.items():
             not_in_saturday_filter = school_data.behavior_report['lesson_date'].dt.weekday != calendar.SATURDAY
             required_columns = ['lesson_date', 'event_type']
             not_in_saturday_df = school_data.behavior_report.loc[not_in_saturday_filter, required_columns]
+            from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
+            from_date_filter = not_in_saturday_df['lesson_date'] >= pd.to_datetime(from_date)
+            to_date_filter = not_in_saturday_df['lesson_date'] <= pd.to_datetime(to_date)
+            not_in_saturday_df = not_in_saturday_df.loc[from_date_filter & to_date_filter]
             num_of_students = not_in_saturday_df['lesson_date'].count()
             num_of_presents = self.count_events(not_in_saturday_df, self.LessonEvents.PRESENCE)
             num_of_missing = self.count_events(not_in_saturday_df, self.LessonEvents.MISSING)
