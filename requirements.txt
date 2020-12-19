@@ -1,4 +1,6 @@
+pyqt5-tools
 xlsxwriter
 requests
 pandas
+PyQt5
 numpy
