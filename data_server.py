@@ -539,4 +539,6 @@ class MashovServer:
 
     def get_num_of_active_classes(self, class_code: str):
         class_details = self.classes_details.get(class_code, {})
+        if not class_details:
+            return 0
         return max(class_details.keys()) - 1  # highest class is archives, not active
