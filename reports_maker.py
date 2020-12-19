@@ -290,6 +290,7 @@ class ReportMaker:
                 school_data.set_num_of_students(class_num, class_num_students.nunique())
 
     def create_presence_summary_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+        self.assert_dates_in_range(from_date, to_date)
         presence_summary_df = pd.DataFrame(columns=['בית ספר'])
         for school_id, school_data in self.schools_data.items():
             presence_filter = school_data.behavior_report['event_type'] == self.LessonEvents.PRESENCE
@@ -309,6 +310,7 @@ class ReportMaker:
         return presence_summary_df
 
     def create_events_without_remarks_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+        self.assert_dates_in_range(from_date, to_date)
         columns = ['שם המורה', 'מקצוע', 'תאריך', 'מספר שיעור', 'שם התלמיד', 'שכבה', 'כיתה', 'סוג האירוע',
                    'הערה מילולית', 'הוצדק ע"י', 'הצדקה', 'בית ספר', 'יום']
         events_without_remarks = pd.DataFrame(columns=columns)
@@ -331,6 +333,7 @@ class ReportMaker:
         return events_without_remarks
 
     def create_middle_week_lessons_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+        self.assert_dates_in_range(from_date, to_date)
         columns = ['בית ספר', 'נוכחים', 'חיסורים', 'חיזוקים', 'איחור', 'הפרעה', 'מצבת']
         middle_week_lessons_df = pd.DataFrame(columns=columns)
         for school_id, school_data in self.schools_data.items():
@@ -481,10 +484,12 @@ class ReportMaker:
         all_schools_grades_df = pd.DataFrame()
         for school_id in self.schools_data.keys():
             current_year_grades_df = self.schools_data[school_id].year_grades.copy()
-            prev_year_grades_df = self.schools_data[school_id].prev_year_grades.copy()
+            prev_year_grades_df = self.schools_data[school_id].prev_year_grades
             if prev_year_grades_df is None:
                 prev_year_grades_df = pd.DataFrame(columns=current_year_grades_df.columns,
                                                    index=current_year_grades_df.index)
+            else:
+                prev_year_grades_df = prev_year_grades_df.copy()
             prev_first_year_grade_df = prev_year_grades_df['end_semester2']
             new_col_pos = current_year_grades_df.columns.get_loc('end_semester1')
             current_year_grades_df.insert(new_col_pos, 'first_year', prev_first_year_grade_df)
