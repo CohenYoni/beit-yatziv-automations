@@ -195,13 +195,17 @@ class MashovReportsToExcel:
     DESTINATION_FOLDER_NAME = 'דוחות משוב'
 
     def __init__(self, heb_year: str, class_codes: Sequence[str], username: str, password: str,
-                 destination_folder_path: str):
+                 destination_folder_path: str, from_date: date = None, to_date: date = None):
         self.class_codes = class_codes
         self.heb_year = heb_year
         self.report_makers_for_class = dict()
         for class_code in self.class_codes:
             report_maker = ReportMaker(self.SCHOOLS, heb_year, class_code, username, password)
-            report_maker.fetch_data_from_server(report_maker.first_school_year_date, report_maker.last_school_year_date)
+            if not from_date:
+                from_date = report_maker.first_school_year_date
+            if not to_date:
+                to_date = report_maker.last_school_year_date
+            report_maker.fetch_data_from_server(from_date, to_date)
             self.report_makers_for_class[class_code] = report_maker
         self.destination_folder_path = os.path.join(destination_folder_path, self.DESTINATION_FOLDER_NAME)
         if os.path.exists(self.destination_folder_path):
