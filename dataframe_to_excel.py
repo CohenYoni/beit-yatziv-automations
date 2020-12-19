@@ -1,6 +1,10 @@
+from reports_maker import ReportMaker
 from typing import Sequence
+from datetime import date
 import pandas as pd
 import xlsxwriter
+import shutil
+import os
 
 
 class SheetDataFrame:
@@ -97,7 +101,8 @@ class DataFrameToExcel:
             'bottom': self.BORDER_WIDTH,
             'top': self.BORDER_WIDTH,
             'left': self.BORDER_WIDTH,
-            'right': self.BORDER_WIDTH
+            'right': self.BORDER_WIDTH,
+            'align': self.horizontal_align
         }
 
     def get_multi_column_first_row(self, df: pd.DataFrame) -> list:
@@ -149,8 +154,8 @@ class DataFrameToExcel:
                         df.columns = df.columns.droplevel(0)
                         col_range_to_merge = self.get_multi_column_range_to_merge(first_row_multi_index)
                     self.df_to_excel_config['startrow'] = data_start_row
-                    styled_df = self.non_unique_col_idx_handler(df, {'text-align': self.horizontal_align})
-                    styled_df.to_excel(writer, sheet_name=sheet_name, **self.df_to_excel_config)
+                    # styled_df = self.non_unique_col_idx_handler(df, {'text-align': self.horizontal_align})
+                    df.to_excel(writer, sheet_name=sheet_name, **self.df_to_excel_config)
                     worksheet = writer.sheets[sheet_name]
                     if self.with_header and self.styled_header:
                         for col_num, value in enumerate(df.columns.values):
@@ -173,10 +178,13 @@ class DataFrameToExcel:
                         for first_col_idx, last_col_idx in col_range_to_merge.items():
                             if first_col_idx < last_col_idx:
                                 data = first_row_multi_index[first_col_idx]
-                                worksheet.merge_range(first_row, first_col_idx, first_row, last_col_idx, data, header_format)
+                                worksheet.merge_range(first_row, first_col_idx, first_row, last_col_idx, data,
+                                                      header_format)
                     xl_range = xlsxwriter.utility.xl_range(first_row, 0, last_row, last_col)
                     worksheet.conditional_format(xl_range, {'type': 'no_errors', 'format': border_format})
                     worksheet.right_to_left()
                     for i, width in enumerate(sheet_df.get_col_widths(self.with_index)):
                         worksheet.set_column(i, i, width)
-                    current_start_row += last_row + 2
+                    current_start_row += len(df) + 2
+                    if first_row_header:
+                        current_start_row += self.START_ROW_IF_SHEET_HEADER_EXISTS
