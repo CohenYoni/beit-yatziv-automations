@@ -223,6 +223,8 @@ class ReportMaker:
 
     def fetch_data_from_server(self, from_date: date, to_date: date) -> None:
         assert from_date <= to_date, 'From date must be less than to date'
+        assert self._first_school_year_date <= from_date, 'From date is before the start of school year'
+        assert to_date <= self._last_school_year_date, 'From date is after the end of school year'
         self.from_date = from_date
         self.to_date = to_date
         for school_id in self.schools_data.keys():
