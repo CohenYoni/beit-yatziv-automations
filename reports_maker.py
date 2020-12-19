@@ -375,7 +375,7 @@ class ReportMaker:
         const_columns = ['מורה אורגני', 'מתרגל', 'יח"ל', 'מצבת']
         periodic_attendance: Dict[str, pd.DataFrame] = dict()
         for school_id, school_data in self.schools_data.items():
-            all_behaviors = school_data.behavior_report
+            all_behaviors = school_data.behavior_report.copy()
             from_date_filter = all_behaviors['lesson_date'] >= pd.to_datetime(from_date)
             to_date_filter = all_behaviors['lesson_date'] <= pd.to_datetime(to_date)
             period_behavior_report = all_behaviors.loc[from_date_filter & to_date_filter]
@@ -549,6 +549,23 @@ class ReportMaker:
         period_behavior_report = period_behavior_report[required_columns]
         schools_groups = period_behavior_report.groupby('school_name')
         schools_summary = dict()
+        cols_order = [
+            'טווח זמן',
+            'תאריך שיעור',
+            'שכבה',
+            'כיתה',
+            'מורה אורגני',
+            'כיתה/קבוצת לימוד',
+            'מספר שיעור',
+            'יח"ל',
+            'מצבת',
+            'נוכחים',
+            'חיסורים',
+            'מגישים',
+            f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})',
+            'הפרעה',
+            'אחוז נוכחות'
+        ]
         for school_key in schools_groups.groups.keys():
             school_id = school_name_to_id_mapper[school_key]
             school_details_df = schools_groups.get_group(school_key)
@@ -572,8 +589,11 @@ class ReportMaker:
                 lambda group: group.loc[
                     group['event_type'] == self.LessonEvents.DISTURB, 'student_id'].nunique())
             school_summary_df['הפרעה'] = num_of_disturbs
-            school_summary_df['אחוז נוכחות'] = round(
-                (school_summary_df['נוכחים'] / school_summary_df['מצבת']) * 100).astype(int).astype(str) + '%'
+            try:
+                school_summary_df['אחוז נוכחות'] = round(
+                    (school_summary_df['נוכחים'] / school_summary_df['מצבת']) * 100).astype(int).astype(str) + '%'
+            except ZeroDivisionError:
+                school_summary_df['אחוז נוכחות'] = pd.NA
             all_grades_report_df = self.schools_data[school_id].all_grades_report.copy()
             from_date_filter = all_grades_report_df['exam_date'] >= pd.to_datetime(from_date)
             to_date_filter = all_grades_report_df['exam_date'] <= pd.to_datetime(to_date)
@@ -615,27 +635,14 @@ class ReportMaker:
                 'class_num': 'כיתה',
                 'lesson_num': 'מספר שיעור'
             }, inplace=True)
-            cols_order = [
-                'טווח זמן',
-                'תאריך שיעור',
-                'שכבה',
-                'כיתה',
-                'מורה אורגני',
-                'כיתה/קבוצת לימוד',
-                'מספר שיעור',
-                'יח"ל',
-                'מצבת',
-                'נוכחים',
-                'חיסורים',
-                'מגישים',
-                f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})',
-                'הפרעה',
-                'אחוז נוכחות'
-            ]
             school_summary_df = school_summary_df[cols_order]
             school_summary_df['סיבת החיסורים וטיפול בהפרעות (ואסים)'] = pd.NA
             school_summary_df['הערות'] = pd.NA
             schools_summary[school_key] = school_summary_df
+        if not schools_summary:
+            for school_name in school_name_to_id_mapper.keys():
+                df = pd.DataFrame(columns=cols_order + ['סיבת החיסורים וטיפול בהפרעות (ואסים)', 'הערות'])
+                schools_summary[school_name] = df
         return schools_summary
 
     def create_raw_behavior_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
@@ -677,6 +684,10 @@ class ReportMaker:
         summary_by_schools = self.create_summary_report_by_schools(from_date, to_date)
         avg_presence_report = pd.DataFrame()
         for school_name, school_df in summary_by_schools.items():
+            if school_df.empty:
+                empty_school_df = pd.DataFrame([[school_name]], columns=['בית ספר'])
+                avg_presence_report = pd.concat([avg_presence_report, empty_school_df], ignore_index=True)
+                continue
             # timedelta - to start week at sunday instead of monday, so Grouper by week will be correct
             school_df['תאריך שיעור'] = school_df['תאריך שיעור'].dt.date + timedelta(days=1)
             school_df['תאריך שיעור'] = pd.to_datetime(school_df['תאריך שיעור'], format='%Y-%m-%d')
