@@ -296,7 +296,7 @@ class MashovReportsToExcel:
             dfs_in_sheet = []
             presence_schools_sheet_name = f'ועדת היגוי לכל בי"ס {class_code}'
             for school, school_df in presence_by_schools.items():
-                curr_df = SheetDataFrame(school_df, f'דוח ועדת היגוי תקופתי עירונית שכבה {class_code} {school}')
+                curr_df = SheetDataFrame(school_df, f'דוח תקופתי ועדת היגוי עירונית שכבה {class_code} {school}')
                 dfs_in_sheet.append(curr_df)
             schools_sheet = Sheet(presence_schools_sheet_name, dfs_in_sheet)
             sheets.append(schools_sheet)
