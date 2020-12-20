@@ -108,6 +108,13 @@ class UiMainWindow:
         self.destination_folder_path = os.path.expanduser('~')
         self.report_maker_thread = None
         self.report_maker_async = None
+        if not os.path.exists(CreateReportsAsync.CREDENTIALS_PATH):
+            credentials = {
+                'username': '',
+                'password': ''
+            }
+            with open(CreateReportsAsync.CREDENTIALS_PATH, 'w') as fp:
+                json.dump(credentials, fp)
 
     def enable_edit_credentials(self):
         self.username_edit_text.setEnabled(self.credentials_edit_checkbox.isChecked())
@@ -120,7 +127,7 @@ class UiMainWindow:
             'username': self.username_edit_text.text(),
             'password': self.password_edit_text.text()
         }
-        with open(CreateReportsAsync.CONFIG_PATH, 'w') as fp:
+        with open(CreateReportsAsync.CREDENTIALS_PATH, 'w') as fp:
             json.dump(credentials, fp)
         self.credentials_edit_checkbox.setChecked(False)
         self.enable_edit_credentials()
@@ -339,11 +346,11 @@ class UiMainWindow:
         self.submit_btn.setText(_translate("MainWindow", "הפקת דוחות"))
         self.class_code_label.setText(_translate("MainWindow", "שכבה:"))
         self.year_label.setText(_translate("MainWindow", "שנה:"))
-        with open(CreateReportsAsync.CONFIG_PATH) as fp:
-            config = json.load(fp)
+        with open(CreateReportsAsync.CREDENTIALS_PATH) as fp:
+            credentials = json.load(fp)
         self.credentials_submit_btn.setText(_translate("MainWindow", "אישור"))
-        self.username_edit_text.setText(_translate("MainWindow", config.get('username', '')))
-        self.password_edit_text.setText(_translate("MainWindow", config.get('password', '')))
+        self.username_edit_text.setText(_translate("MainWindow", credentials.get('username', '')))
+        self.password_edit_text.setText(_translate("MainWindow", credentials.get('password', '')))
         self.credentials_edit_checkbox.setText(_translate("MainWindow", 'שינוי פרטי התחברות'))
 
     def summary_radio_clicked(self):
@@ -496,6 +503,7 @@ class UiMainWindow:
         self.summary_radio_clicked()
         self.mashov_radio_clicked()
         self.periodical_radio_clicked()
+        self.enable_edit_credentials()
 
     @pyqtSlot(str)
     def on_error_occur(self, error_msg):
@@ -511,7 +519,7 @@ class CreateReportsAsync(QObject):
     sig_msg = pyqtSignal(str)  # message to be shown to user
     sig_update_error = pyqtSignal(str)
     sig_update_fetch = pyqtSignal(str)
-    CONFIG_PATH = 'config.json'
+    CREDENTIALS_PATH = 'credentials.json'
 
     @staticmethod
     def get_exception_msg(e_msg):
@@ -537,11 +545,11 @@ class CreateReportsAsync(QObject):
         self.class_codes = class_codes
         self.destination_folder_path = destination_folder_path
 
-        assert os.path.exists(self.CONFIG_PATH), "קובץ קונפיגורציה חסר!"
-        with open(self.CONFIG_PATH) as config_json:
-            config = json.load(config_json)
-        self.username = config.get('username', '')
-        self.password = config.get('password', '')
+        assert os.path.exists(self.CREDENTIALS_PATH), "קובץ קונפיגורציה חסר!"
+        with open(self.CREDENTIALS_PATH) as credentials_json:
+            credentials = json.load(credentials_json)
+        self.username = credentials.get('username', '')
+        self.password = credentials.get('password', '')
 
     @pyqtSlot()
     def create_reports(self):
