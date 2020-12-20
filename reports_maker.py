@@ -436,7 +436,6 @@ class ReportMaker:
         to_month_week_day, to_month_last_day = calendar.monthrange(to_year, to_month_num)
         from_date = date(from_year, from_month_num, 1)
         to_date = date(to_year, to_month_num, to_month_last_day)
-        self.assert_dates_in_range(from_date, to_date)
         from_date = pd.to_datetime(from_date)
         to_date = pd.to_datetime(to_date)
         presence_by_month: Dict[str, pd.DataFrame] = dict()
