@@ -20,7 +20,7 @@ class School:
     @school_id.setter
     def school_id(self, school_id: int) -> None:
         if type(school_id) != int:
-            raise TypeError(f'School ID must be an integer, not {type(school_id)}')
+            raise TypeError(f'מזהה בית ספר חייב להיות מספר, לא מסוג {type(school_id)}')
         self._school_id = school_id
 
     @property
@@ -30,7 +30,7 @@ class School:
     @name.setter
     def name(self, name: str) -> None:
         if type(name) != str:
-            raise TypeError(f'School name must be a string, not {type(name)}')
+            raise TypeError(f'שם בית ספר חייב להיות מחרוזת, לא מסוג {type(name)}')
         self._name = name
 
     def __str__(self) -> str:
@@ -150,7 +150,7 @@ class MashovServer:
     def map_heb_year_to_greg(heb_year: str) -> int:
         clean_heb_year = heb_year.replace('\"', '').replace('\'', '')
         if clean_heb_year not in MashovServer.HEB_TO_GREG_YEAR_MAPPER.keys():
-            raise TypeError(f'{heb_year} is not a correct Hebrew year!')
+            raise TypeError(f'{heb_year} אינה שנה עברית תקינה!')
         return MashovServer.HEB_TO_GREG_YEAR_MAPPER[clean_heb_year]
 
     @staticmethod
@@ -160,7 +160,7 @@ class MashovServer:
             if greg_year == greg:
                 heb_year = heb
                 break
-        assert heb_year, f'{greg_year} is not a correct year!'
+        assert heb_year, f'{greg_year} אינה שנה לועזית תקינה!'
         return heb_year
 
     def __init__(self, school_id: int, school_year: str):
@@ -168,7 +168,7 @@ class MashovServer:
         try:
             res.raise_for_status()
         except requests.exceptions.HTTPError:
-            raise requests.exceptions.HTTPError('An error occurred while fetching school list from the server')
+            raise requests.exceptions.HTTPError('אירעה שגיאה בזמן הורדת רשימת בתי הספר מהשרת')
         all_schools_json = res.json()
         self._api_version = res.headers['apiversion']
         self._all_schools = dict()
@@ -195,9 +195,9 @@ class MashovServer:
     @school.setter
     def school(self, school_id: int) -> None:
         if type(school_id) != int:
-            raise TypeError(f'School must be an integer, not {type(school_id)}')
+            raise TypeError(f'מזהה בית ספר חייב להיות מספר, לא מסוג {type(school_id)}')
         if school_id not in self._all_schools.keys():
-            raise TypeError(f'{school_id} is no a correct school')
+            raise TypeError(f'{school_id} לא קיים במערכת')
         self._school = School(school_id=school_id, name=self._all_schools[school_id]['name'])
 
     @property
@@ -207,17 +207,17 @@ class MashovServer:
     @school_year.setter
     def school_year(self, school_year: str) -> None:
         if type(school_year) != str:
-            raise TypeError(f'School year must be a string, not {type(school_year)}')
-        assert self.school, 'You must initialize the school first!'
+            raise TypeError(f'שנת לימודים חייבת להיות מחרוזת, לא מסוג {type(school_year)}')
+        assert self.school, 'לא נבחר בית ספר!'
         gregorian_year = self.map_heb_year_to_greg(school_year)
         school_years = self._all_schools[self.school.school_id]['years']
         if gregorian_year not in school_years:
             possible_years = ', '.join([self.map_greg_year_to_heb(year) for year in school_years])
-            raise TypeError(f'There is not {school_year} in {self.school.name} (possible years are {possible_years})')
+            raise TypeError(f'לא קיימת שנה {school_year} ב- {self.school.name} (שנים אפשריות הן {possible_years})')
         self._school_year = gregorian_year
 
     def assert_logged_in(self):
-        assert self._logged_in, 'You must log in first!'
+        assert self._logged_in, 'עלייך להתחבר תחילה!'
 
     def login(self, username: str, password: str) -> None:
         login_json_data = {
@@ -241,7 +241,7 @@ class MashovServer:
         try:
             res.raise_for_status()
         except requests.exceptions.HTTPError:
-            raise requests.exceptions.HTTPError(f'Login process failed: {res.reason}: {res.text}')
+            raise requests.exceptions.HTTPError(f'תהליך ההתחברות נכשל: {res.reason}: {res.text}')
         self._auth_json_response = res.json()
         self._csrf_token = self._session.cookies.get('Csrf-Token')
         self._session.headers.update({'X-Csrf-Token': self._csrf_token})
@@ -512,8 +512,8 @@ class MashovServer:
 
     def _get_class_details(self, class_code: str, class_num: int) -> Class:
         self.assert_logged_in()
-        assert type(class_code) == str, 'Class code must be a string!'
-        assert type(class_num) == int, 'Class number must be an integer!'
+        assert type(class_code) == str, 'שכבה חייבת להיות מחרוזת!'
+        assert type(class_num) == int, 'כיתה חייבת להיות מספר!'
         return self.classes_details.get(class_code, {}).get(class_num, None)
 
     def get_class_level(self, class_code: str, class_num: int) -> str:

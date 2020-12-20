@@ -190,10 +190,10 @@ class ReportMaker:
     @staticmethod
     def get_previous_class_code(class_code: str) -> str:
         if class_code not in ReportMaker.HEB_CLASS_TO_NUM_MAPPER:
-            raise ValueError(f'{class_code} is not a valid class code!')
+            raise ValueError(f'{class_code} אינה שכבה תקינה!')
         class_code_num = ReportMaker.HEB_CLASS_TO_NUM_MAPPER[class_code]
         if class_code_num == 1:
-            raise ValueError(f'{class_code} is the first class!')
+            raise ValueError(f'{class_code} היא השכבה הראשונה!')
         return ReportMaker.NUM_TO_HEB_CLASS_MAPPER[class_code_num - 1]
 
     @staticmethod
@@ -222,9 +222,9 @@ class ReportMaker:
         return self._last_school_year_date
 
     def fetch_data_from_server(self, from_date: date, to_date: date) -> None:
-        assert from_date <= to_date, 'From date must be less than to date'
-        assert self._first_school_year_date <= from_date, 'From date is before the start of school year'
-        assert to_date <= self._last_school_year_date, 'From date is after the end of school year'
+        assert from_date <= to_date, 'תאריך התחלה חייב להיות קטן יותר מתאריך סיום'
+        assert self._first_school_year_date <= from_date, 'תאריך התחלה הוא לפני תחילת שנת הלימודים'
+        assert to_date <= self._last_school_year_date, 'תאריך סיום הוא אחרי סיום שנת הלימודים'
         self.from_date = from_date
         self.to_date = to_date
         for school_id in self.schools_data.keys():
@@ -369,8 +369,8 @@ class ReportMaker:
     def assert_dates_in_range(self, from_date: date, to_date: date):
         current_date_range = f'{self.from_date.strftime(self.DATE_FORMAT)} - {self.to_date.strftime(self.DATE_FORMAT)}'
         required_date_range = f'{from_date.strftime(self.DATE_FORMAT)} - {to_date.strftime(self.DATE_FORMAT)}'
-        error_msg = 'You must fetch the data again with the new date range!'
-        error_msg += f'{error_msg} (current: {current_date_range}, required: {required_date_range})'
+        error_msg = 'הינך מנסה להודיד נתונים בטווח תאריכים שונה מהקיים!'
+        error_msg += f'{error_msg} (קיים: {current_date_range}, נדרש: {required_date_range})'
         assert self.from_date <= from_date <= to_date <= self.to_date, error_msg
 
     def create_presence_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
