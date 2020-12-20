@@ -217,13 +217,13 @@ class MashovReportsToExcel:
     def write_raw_behavior_report(self, from_date: date, to_date: date) -> None:
         date_range_str = f'{from_date.strftime("%d.%m.%Y")}-{to_date.strftime("%d.%m.%Y")}'
         for class_code, report_maker in self.report_makers_for_class.items():
-            file_name = f'דוח התנהגות שכבה {class_code} {date_range_str}.xlsx'
+            file_name = f'דוח התנהגות גולמי שכבה {class_code} {date_range_str}.xlsx'
             file_path = os.path.join(self.destination_folder_path, file_name)
             sheets = []
             school_behavior_data = report_maker.create_raw_behavior_report_by_schools(from_date, to_date)
             for school_name, behavior_df in school_behavior_data.items():
                 sheet_name = f'{school_name} {class_code}'
-                header = f'דוח התנהגות {school_name}'
+                header = f'דוח התנהגות גולמי {school_name}'
                 sheet = Sheet(sheet_name, [SheetDataFrame(behavior_df, header)])
                 sheets.append(sheet)
             excel_writer = DataFrameToExcel(file_path=file_path, sheets=sheets)
