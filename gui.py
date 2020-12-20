@@ -4,6 +4,7 @@ from datetime import date, datetime, timedelta
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtCore import Qt
 import traceback
+import requests
 import json
 import sys
 import os
@@ -85,6 +86,20 @@ class UiMainWindow:
         self.periodical_to_date_picker = None
         self.error_label = None
         self.submit_btn = None
+        self.class_code_label = None
+        self.year_label = None
+        self.summary_button_group = None
+        self.summary_week_btn = None
+        self.summary_year_btn = None
+        self.summary_between_date_btn = None
+        self.mashov_button_group = None
+        self.mashov_week_btn = None
+        self.mashov_year_btn = None
+        self.mashov_between_date_btn = None
+        self.periodical_button_group = None
+        self.periodical_week_btn = None
+        self.periodical_year_btn = None
+        self.periodical_between_date_btn = None
         self._translate = QtCore.QCoreApplication.translate
 
         self.destination_folder_path = os.path.expanduser('~')
@@ -451,6 +466,13 @@ class CreateReportsAsync(QObject):
     sig_update_fetch = pyqtSignal(str)
     CONFIG_PATH = 'config.json'
 
+    @staticmethod
+    def get_exception_msg(e_msg):
+        msg = f'שגיאה:\n{e_msg}'
+        if DEBUG:
+            msg = f'{msg}\n{traceback.format_exc()}'
+        return msg
+
     def __init__(self, year: str, class_codes: list, destination_folder_path: str, min_from_date: date,
                  max_to_date: date, summary_from_date: date = None, summary_to_date: date = None,
                  mashov_from_date: date = None, mashov_to_date: date = None, periodical_from_date: date = None,
@@ -506,11 +528,11 @@ class CreateReportsAsync(QObject):
                 self.max_to_date = report_writer.to_date
             report_writer.write_raw_behavior_report(self.min_from_date, self.max_to_date)
             self.sig_update_fetch.emit('הדוחות הופקו בהצלחה!')
+        except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError):
+            self.sig_update_error.emit(self.get_exception_msg('לא קיים חיבור לאינטרנט או שקיימת בעיה באתר משוב'))
+            self.sig_update_fetch.emit('')
         except Exception as e:
-            msg = f'שגיאה:\n{e}'
-            if DEBUG:
-                msg = f'{msg}\n{traceback.format_exc()}'
-            self.sig_update_error.emit(msg)
+            self.sig_update_error.emit(self.get_exception_msg(e))
             self.sig_update_fetch.emit('')
         self.sig_done.emit()
 
