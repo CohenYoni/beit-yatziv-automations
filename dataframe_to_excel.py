@@ -198,6 +198,10 @@ class MashovReportsToExcel:
                  destination_folder_path: str, from_date: date = None, to_date: date = None):
         self.class_codes = class_codes
         self.heb_year = heb_year
+        self.destination_folder_path = os.path.join(destination_folder_path, self.DESTINATION_FOLDER_NAME)
+        if os.path.exists(self.destination_folder_path):
+            shutil.rmtree(self.destination_folder_path)
+        os.makedirs(self.destination_folder_path)
         self.report_makers_for_class = dict()
         for class_code in self.class_codes:
             report_maker = ReportMaker(self.SCHOOLS, heb_year, class_code, username, password)
@@ -205,12 +209,10 @@ class MashovReportsToExcel:
                 from_date = report_maker.first_school_year_date
             if not to_date:
                 to_date = report_maker.last_school_year_date
+            self.from_date = from_date
+            self.to_date = to_date
             report_maker.fetch_data_from_server(from_date, to_date)
             self.report_makers_for_class[class_code] = report_maker
-        self.destination_folder_path = os.path.join(destination_folder_path, self.DESTINATION_FOLDER_NAME)
-        if os.path.exists(self.destination_folder_path):
-            shutil.rmtree(self.destination_folder_path)
-        os.makedirs(self.destination_folder_path)
 
     def write_raw_behavior_report(self, from_date: date, to_date: date) -> None:
         date_range_str = f'{from_date.strftime("%d.%m.%Y")}-{to_date.strftime("%d.%m.%Y")}'
