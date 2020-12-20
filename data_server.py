@@ -241,7 +241,7 @@ class MashovServer:
         try:
             res.raise_for_status()
         except requests.exceptions.HTTPError:
-            raise requests.exceptions.HTTPError(f'תהליך ההתחברות נכשל: {res.reason}: {res.text}')
+            raise ValueError(f'תהליך ההתחברות נכשל:\n{res.reason}: {res.text}')
         self._auth_json_response = res.json()
         self._csrf_token = self._session.cookies.get('Csrf-Token')
         self._session.headers.update({'X-Csrf-Token': self._csrf_token})
