@@ -9,7 +9,6 @@ import json
 import sys
 import os
 
-
 DEBUG = False
 
 
@@ -61,7 +60,7 @@ class UiMainWindow:
 
     @staticmethod
     def get_last_day_of_week():
-        return UiMainWindow.get_first_day_of_week()+ timedelta(days=6)
+        return UiMainWindow.get_first_day_of_week() + timedelta(days=6)
 
     def __init__(self):
         self.central_widget = None
@@ -100,11 +99,31 @@ class UiMainWindow:
         self.periodical_week_btn = None
         self.periodical_year_btn = None
         self.periodical_between_date_btn = None
+        self.credentials_edit_checkbox = None
+        self.username_edit_text = None
+        self.password_edit_text = None
+        self.credentials_submit_btn = None
         self._translate = QtCore.QCoreApplication.translate
 
         self.destination_folder_path = os.path.expanduser('~')
         self.report_maker_thread = None
         self.report_maker_async = None
+
+    def enable_edit_credentials(self):
+        self.username_edit_text.setEnabled(self.credentials_edit_checkbox.isChecked())
+        self.password_edit_text.setEnabled(self.credentials_edit_checkbox.isChecked())
+        self.credentials_submit_btn.setEnabled(self.credentials_edit_checkbox.isChecked())
+        self.credentials_edit_checkbox.setEnabled(not self.credentials_edit_checkbox.isChecked())
+
+    def credentials_submit(self):
+        credentials = {
+            'username': self.username_edit_text.text(),
+            'password': self.password_edit_text.text()
+        }
+        with open(CreateReportsAsync.CONFIG_PATH, 'w') as fp:
+            json.dump(credentials, fp)
+        self.credentials_edit_checkbox.setChecked(False)
+        self.enable_edit_credentials()
 
     def setupUi(self, main_window):
         main_window.setObjectName("MainWindow")
@@ -122,6 +141,18 @@ class UiMainWindow:
         self.header_label = QtWidgets.QLabel(self.central_widget)
         self.header_label.setAlignment(QtCore.Qt.AlignCenter)
         self.header_label.setObjectName("header_label")
+
+        self.credentials_edit_checkbox = QtWidgets.QCheckBox(self.central_widget)
+        self.credentials_edit_checkbox.setChecked(False)
+        self.credentials_edit_checkbox.stateChanged.connect(self.enable_edit_credentials)
+        self.username_edit_text = QtWidgets.QLineEdit(self.central_widget)
+        self.password_edit_text = QtWidgets.QLineEdit(self.central_widget)
+        self.password_edit_text.setEchoMode(QtWidgets.QLineEdit.Password)
+        self.credentials_submit_btn = QtWidgets.QPushButton(self.central_widget)
+        self.credentials_submit_btn.setFlat(False)
+        self.credentials_submit_btn.setObjectName("credentials_submit_btn")
+        self.credentials_submit_btn.clicked.connect(self.credentials_submit)
+        self.enable_edit_credentials()
 
         self.fetch_from_server_label = QtWidgets.QLabel(self.central_widget)
         font = QtGui.QFont()
@@ -244,34 +275,40 @@ class UiMainWindow:
 
         self.gridLayout.addWidget(self.header_label, 1, 0, 1, 6)
         self.gridLayout.addWidget(self.fetch_from_server_label, 2, 0, 1, 6)
-        self.gridLayout.addWidget(self.class_code_label, 3, 0, 1, 1)
-        self.gridLayout.addWidget(self.class_code_10_checkbox, 3, 1, 1, 1)
-        self.gridLayout.addWidget(self.class_code_11_checkbox, 3, 2, 1, 1)
-        self.gridLayout.addWidget(self.class_code_12_checkbox, 3, 3, 1, 1)
-        self.gridLayout.addWidget(self.year_label, 3, 4, 1, 1)
-        self.gridLayout.addWidget(self.year_combobox, 3, 5, 1, 1)
-        self.gridLayout.addWidget(self.from_date_label, 4, 4, 1, 1)
-        self.gridLayout.addWidget(self.to_date_label, 4, 5, 1, 1)
-        self.gridLayout.addWidget(self.summary_checkbox, 5, 0, 1, 1)
-        self.gridLayout.addWidget(self.summary_week_btn, 5, 1, 1, 1)
-        self.gridLayout.addWidget(self.summary_year_btn, 5, 2, 1, 1)
-        self.gridLayout.addWidget(self.summary_between_date_btn, 5, 3, 1, 1)
-        self.gridLayout.addWidget(self.summary_from_date_picker, 5, 4, 1, 1)
-        self.gridLayout.addWidget(self.summary_to_date_picker, 5, 5, 1, 1)
-        self.gridLayout.addWidget(self.mashov_checkbox, 6, 0, 1, 1)
-        self.gridLayout.addWidget(self.mashov_week_btn, 6, 1, 1, 1)
-        self.gridLayout.addWidget(self.mashov_year_btn, 6, 2, 1, 1)
-        self.gridLayout.addWidget(self.mashov_between_date_btn, 6, 3, 1, 1)
-        self.gridLayout.addWidget(self.mashov_from_date_picker, 6, 4, 1, 1)
-        self.gridLayout.addWidget(self.mashov_to_date_picker, 6, 5, 1, 1)
-        self.gridLayout.addWidget(self.periodical_checkbox, 7, 0, 1, 1)
-        self.gridLayout.addWidget(self.periodical_week_btn, 7, 1, 1, 1)
-        self.gridLayout.addWidget(self.periodical_year_btn, 7, 2, 1, 1)
-        self.gridLayout.addWidget(self.periodical_between_date_btn, 7, 3, 1, 1)
-        self.gridLayout.addWidget(self.periodical_from_date_picker, 7, 4, 1, 1)
-        self.gridLayout.addWidget(self.periodical_to_date_picker, 7, 5, 1, 1)
-        self.gridLayout.addWidget(self.error_label, 8, 0, 1, 6)
-        self.gridLayout.addWidget(self.submit_btn, 9, 1, 1, 4)
+
+        self.gridLayout.addWidget(self.credentials_edit_checkbox, 3, 0, 1, 2)
+        self.gridLayout.addWidget(self.username_edit_text, 3, 2, 1, 1)
+        self.gridLayout.addWidget(self.password_edit_text, 3, 3, 1, 1)
+        self.gridLayout.addWidget(self.credentials_submit_btn, 3, 4, 1, 1)
+
+        self.gridLayout.addWidget(self.class_code_label, 4, 0, 1, 1)
+        self.gridLayout.addWidget(self.class_code_10_checkbox, 4, 1, 1, 1)
+        self.gridLayout.addWidget(self.class_code_11_checkbox, 4, 2, 1, 1)
+        self.gridLayout.addWidget(self.class_code_12_checkbox, 4, 3, 1, 1)
+        self.gridLayout.addWidget(self.year_label, 4, 4, 1, 1)
+        self.gridLayout.addWidget(self.year_combobox, 4, 5, 1, 1)
+        self.gridLayout.addWidget(self.from_date_label, 5, 4, 1, 1)
+        self.gridLayout.addWidget(self.to_date_label, 5, 5, 1, 1)
+        self.gridLayout.addWidget(self.summary_checkbox, 6, 0, 1, 1)
+        self.gridLayout.addWidget(self.summary_week_btn, 6, 1, 1, 1)
+        self.gridLayout.addWidget(self.summary_year_btn, 6, 2, 1, 1)
+        self.gridLayout.addWidget(self.summary_between_date_btn, 6, 3, 1, 1)
+        self.gridLayout.addWidget(self.summary_from_date_picker, 6, 4, 1, 1)
+        self.gridLayout.addWidget(self.summary_to_date_picker, 6, 5, 1, 1)
+        self.gridLayout.addWidget(self.mashov_checkbox, 7, 0, 1, 1)
+        self.gridLayout.addWidget(self.mashov_week_btn, 7, 1, 1, 1)
+        self.gridLayout.addWidget(self.mashov_year_btn, 7, 2, 1, 1)
+        self.gridLayout.addWidget(self.mashov_between_date_btn, 7, 3, 1, 1)
+        self.gridLayout.addWidget(self.mashov_from_date_picker, 7, 4, 1, 1)
+        self.gridLayout.addWidget(self.mashov_to_date_picker, 7, 5, 1, 1)
+        self.gridLayout.addWidget(self.periodical_checkbox, 8, 0, 1, 1)
+        self.gridLayout.addWidget(self.periodical_week_btn, 8, 1, 1, 1)
+        self.gridLayout.addWidget(self.periodical_year_btn, 8, 2, 1, 1)
+        self.gridLayout.addWidget(self.periodical_between_date_btn, 8, 3, 1, 1)
+        self.gridLayout.addWidget(self.periodical_from_date_picker, 8, 4, 1, 1)
+        self.gridLayout.addWidget(self.periodical_to_date_picker, 8, 5, 1, 1)
+        self.gridLayout.addWidget(self.error_label, 9, 0, 1, 6)
+        self.gridLayout.addWidget(self.submit_btn, 10, 1, 1, 4)
         main_window.setCentralWidget(self.central_widget)
         self.retranslateUi(main_window)
         QtCore.QMetaObject.connectSlotsByName(main_window)
@@ -302,6 +339,12 @@ class UiMainWindow:
         self.submit_btn.setText(_translate("MainWindow", "הפקת דוחות"))
         self.class_code_label.setText(_translate("MainWindow", "שכבה:"))
         self.year_label.setText(_translate("MainWindow", "שנה:"))
+        with open(CreateReportsAsync.CONFIG_PATH) as fp:
+            config = json.load(fp)
+        self.credentials_submit_btn.setText(_translate("MainWindow", "אישור"))
+        self.username_edit_text.setText(_translate("MainWindow", config.get('username', '')))
+        self.password_edit_text.setText(_translate("MainWindow", config.get('password', '')))
+        self.credentials_edit_checkbox.setText(_translate("MainWindow", 'שינוי פרטי התחברות'))
 
     def summary_radio_clicked(self):
         self.summary_from_date_picker.setEnabled(self.summary_between_date_btn.isChecked())
@@ -434,6 +477,10 @@ class UiMainWindow:
         self.periodical_from_date_picker.setEnabled(enable)
         self.periodical_to_date_picker.setEnabled(enable)
         self.submit_btn.setEnabled(enable)
+        self.credentials_edit_checkbox.setEnabled(enable)
+        self.username_edit_text.setEnabled(enable)
+        self.password_edit_text.setEnabled(enable)
+        self.credentials_submit_btn.setEnabled(enable)
         if enable:
             self.summary_radio_clicked()
             self.mashov_radio_clicked()
