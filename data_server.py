@@ -213,7 +213,7 @@ class MashovServer:
         school_years = self._all_schools[self.school.school_id]['years']
         if gregorian_year not in school_years:
             possible_years = ', '.join([self.map_greg_year_to_heb(year) for year in school_years])
-            raise TypeError(f'לא קיימת שנה {school_year} ב- {self.school.name} (שנים אפשריות הן {possible_years})')
+            raise TypeError(f'לא קיימת שנה {school_year} ב{self.school.name} (שנים אפשריות הן {possible_years})')
         self._school_year = gregorian_year
 
     def assert_logged_in(self):
