@@ -103,6 +103,7 @@ class UiMainWindow:
         self.username_edit_text = None
         self.password_edit_text = None
         self.credentials_submit_btn = None
+        self.open_destination_folder_btn =None
         self._translate = QtCore.QCoreApplication.translate
 
         self.destination_folder_path = os.path.expanduser('~')
@@ -276,9 +277,12 @@ class UiMainWindow:
         self.error_label.setStyleSheet('color: red')
 
         self.submit_btn = QtWidgets.QPushButton(self.central_widget)
-        self.submit_btn.setFlat(False)
         self.submit_btn.setObjectName("submit_btn")
         self.submit_btn.clicked.connect(self.submit)
+
+        self.open_destination_folder_btn = QtWidgets.QPushButton(self.central_widget)
+        self.open_destination_folder_btn.setObjectName("open_destination_folder_btn")
+        self.open_destination_folder_btn.clicked.connect(self.open_destination_folder)
 
         self.gridLayout.addWidget(self.header_label, 1, 0, 1, 6)
         self.gridLayout.addWidget(self.fetch_from_server_label, 2, 0, 1, 6)
@@ -315,7 +319,8 @@ class UiMainWindow:
         self.gridLayout.addWidget(self.periodical_from_date_picker, 8, 4, 1, 1)
         self.gridLayout.addWidget(self.periodical_to_date_picker, 8, 5, 1, 1)
         self.gridLayout.addWidget(self.error_label, 9, 0, 1, 6)
-        self.gridLayout.addWidget(self.submit_btn, 10, 1, 1, 4)
+        self.gridLayout.addWidget(self.submit_btn, 10, 0, 1, 3)
+        self.gridLayout.addWidget(self.open_destination_folder_btn, 10, 3, 1, 3)
         main_window.setCentralWidget(self.central_widget)
         self.retranslateUi(main_window)
         QtCore.QMetaObject.connectSlotsByName(main_window)
@@ -352,6 +357,16 @@ class UiMainWindow:
         self.username_edit_text.setText(_translate("MainWindow", credentials.get('username', '')))
         self.password_edit_text.setText(_translate("MainWindow", credentials.get('password', '')))
         self.credentials_edit_checkbox.setText(_translate("MainWindow", 'עדכון פרטי התחברות'))
+        self.open_destination_folder_btn.setText(_translate("MainWindow", 'פתיחת תיקיית יעד'))
+
+    def open_destination_folder(self):
+        if self.destination_folder_path:
+            try:
+                os.startfile(os.path.join(self.destination_folder_path, MashovReportsToExcel.DESTINATION_FOLDER_NAME))
+            except Exception as e:
+                print(e)
+                self.error_label.setText(self._translate("MainWindow", 'תיקיית יעד לא קיימת או שאין לך הרשאות גישה '
+                                                                       'אליה'))
 
     def summary_radio_clicked(self):
         self.summary_from_date_picker.setEnabled(self.summary_between_date_btn.isChecked())
