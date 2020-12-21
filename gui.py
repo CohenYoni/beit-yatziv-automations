@@ -351,7 +351,7 @@ class UiMainWindow:
         self.credentials_submit_btn.setText(_translate("MainWindow", "אישור"))
         self.username_edit_text.setText(_translate("MainWindow", credentials.get('username', '')))
         self.password_edit_text.setText(_translate("MainWindow", credentials.get('password', '')))
-        self.credentials_edit_checkbox.setText(_translate("MainWindow", 'שינוי פרטי התחברות'))
+        self.credentials_edit_checkbox.setText(_translate("MainWindow", 'עדכון פרטי התחברות'))
 
     def summary_radio_clicked(self):
         self.summary_from_date_picker.setEnabled(self.summary_between_date_btn.isChecked())
@@ -405,10 +405,10 @@ class UiMainWindow:
             else:
                 summary_from_date, summary_to_date = None, None
         if self.mashov_checkbox.isChecked():
-            if self.summary_between_date_btn.isChecked():
+            if self.mashov_between_date_btn.isChecked():
                 mashov_from_date = self.mashov_from_date_picker.date().toPyDate()
                 mashov_to_date = self.mashov_to_date_picker.date().toPyDate()
-            elif self.summary_week_btn.isChecked():
+            elif self.mashov_week_btn.isChecked():
                 mashov_from_date = self.get_first_day_of_week()
                 mashov_to_date = self.get_last_day_of_week()
             else:
@@ -417,7 +417,7 @@ class UiMainWindow:
             if self.summary_between_date_btn.isChecked():
                 periodical_from_date = self.periodical_from_date_picker.date().toPyDate()
                 periodical_to_date = self.periodical_to_date_picker.date().toPyDate()
-            elif self.summary_week_btn.isChecked():
+            elif self.periodical_week_btn.isChecked():
                 periodical_from_date = self.get_first_day_of_week()
                 periodical_to_date = self.get_last_day_of_week()
             else:
@@ -556,12 +556,12 @@ class CreateReportsAsync(QObject):
         thread_name = QThread.currentThread().objectName()
         thread_id = int(QThread.currentThreadId())
         self.sig_msg.emit(f'Fetching data from thread "{thread_name}" (#{thread_id})')
-        self.sig_update_fetch.emit('מוריד מידע מהשרת, נא להמתין...')
+        self.sig_update_error.emit('מוריד מידע מהשרת, נא להמתין...')
         try:
             report_writer = MashovReportsToExcel(
                 self.year, self.class_codes, self.username, self.password, self.destination_folder_path,
                 from_date=self.min_from_date, to_date=self.max_to_date)
-            self.sig_update_fetch.emit('')
+            self.sig_update_error.emit('מפיק דוחות...')
             self.sig_msg.emit(f'Create summary report from thread "{thread_name}" (#{thread_id})')
             if self.summary_from_date and self.summary_to_date:
                 report_writer.write_summary_report(self.summary_from_date, self.summary_to_date)
@@ -582,13 +582,11 @@ class CreateReportsAsync(QObject):
             if not self.max_to_date:
                 self.max_to_date = report_writer.to_date
             report_writer.write_raw_behavior_report(self.min_from_date, self.max_to_date)
-            self.sig_update_fetch.emit('הדוחות הופקו בהצלחה!')
+            self.sig_update_error.emit('הדוחות הופקו בהצלחה!')
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout, requests.exceptions.HTTPError):
             self.sig_update_error.emit(self.get_exception_msg('לא קיים חיבור לאינטרנט או שקיימת בעיה באתר משוב'))
-            self.sig_update_fetch.emit('')
         except Exception as e:
             self.sig_update_error.emit(self.get_exception_msg(e))
-            self.sig_update_fetch.emit('')
         self.sig_done.emit()
 
 
