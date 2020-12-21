@@ -135,6 +135,7 @@ class UiMainWindow:
 
     def setupUi(self, main_window):
         main_window.setObjectName("MainWindow")
+        self.setWindowIcon(QtGui.QIcon('mashov_icon.png'))
         main_window.setFixedSize(800, 400)
         font = QtGui.QFont()
         font.setPointSize(15)
