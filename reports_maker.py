@@ -718,9 +718,9 @@ class ReportMaker:
             average_presence.reset_index(drop=True, inplace=True)
             average_presence.columns.name = ''
             avg_presence_report = pd.concat([avg_presence_report, average_presence], ignore_index=True)
-        sum_data = avg_presence_report.drop('בית ספר', axis=1
-                                            ).replace('%', '', regex=True).astype('float64').mean().apply(round)
-        sum_data = ['ממוצע נוכחות עירוני'] + [f'{avg}%' for avg in sum_data]
+        sum_data = avg_presence_report.drop('בית ספר', axis=1).replace('%', '', regex=True).astype('float64').mean()
+        sum_data = sum_data.fillna(0).apply(round).replace(0, '')
+        sum_data = ['ממוצע נוכחות עירוני'] + [f'{avg}%' if avg else pd.NA for avg in sum_data]
         avg_presence_report.loc[len(avg_presence_report)] = sum_data
         return avg_presence_report
 
