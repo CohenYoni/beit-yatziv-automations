@@ -187,6 +187,7 @@ class MashovServer:
         self._auth_json_response = dict()
         self._logged_in = False
         self.classes_details: Dict[str, Dict[int, Class]] = dict()
+        self._phonebook_df = None
 
     @property
     def school(self) -> School:
@@ -358,6 +359,8 @@ class MashovServer:
             ]
             return required_data
 
+        if self._phonebook_df is not None:
+            return self._phonebook_df.copy()
         encoded_class = urllib.parse.quote(class_code)
         details_url = f'{self.BASE_URL}/api/classes/{encoded_class}/students/details'
         details_res = self._session.get(details_url, headers={'Referer': self.MAIN_DASHBOARD_PAGE_URL})
@@ -379,6 +382,7 @@ class MashovServer:
                    'saturday_practitioner', 'material_help', 'home_visits']
         data = [parse_json_res(v, json_extra_data_res) for v in json_details_res]
         phonebook_df = pd.DataFrame(data, columns=columns)
+        self._phonebook_df = phonebook_df
         return phonebook_df
 
     def get_grades_report(self, from_date: date, to_date: date, class_code: str, exam_type: int) -> pd.DataFrame:
@@ -535,6 +539,8 @@ class MashovServer:
         class_code_filter = phonebook_df['class_code'] == class_code
         class_num_filter = phonebook_df['class_num'] == class_num
         teachers_df = phonebook_df.loc[class_code_filter & class_num_filter, 'original_teacher']
+        if teachers_df.empty:
+            return ''
         return str(teachers_df.mode().head(1).item())
 
     def get_num_of_active_classes(self, class_code: str):
