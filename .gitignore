@@ -7,3 +7,6 @@
 !gui.py
 !mashov_icon.ico
 !mashov_icon.png
+!dist
+!dist/mashov_icon.png
+!dist/MashovReports.exe
