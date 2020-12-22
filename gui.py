@@ -54,13 +54,13 @@ class UiMainWindow:
     )
 
     @staticmethod
-    def get_first_day_of_week() -> date:
+    def get_first_day_of_prev_week() -> date:
         curr_date = datetime.now().date()
-        return curr_date - timedelta(days=(curr_date.weekday() + 1) % 7)
+        return curr_date - timedelta(days=(curr_date.weekday() + 1) % 7) - timedelta(days=7)
 
     @staticmethod
-    def get_last_day_of_week():
-        return UiMainWindow.get_first_day_of_week() + timedelta(days=6)
+    def get_last_day_of_prev_week():
+        return UiMainWindow.get_first_day_of_prev_week() + timedelta(days=6)
 
     def __init__(self):
         self.central_widget = None
@@ -416,8 +416,8 @@ class UiMainWindow:
                 summary_from_date = self.summary_from_date_picker.date().toPyDate()
                 summary_to_date = self.summary_to_date_picker.date().toPyDate()
             elif self.summary_week_btn.isChecked():
-                summary_from_date = self.get_first_day_of_week()
-                summary_to_date = self.get_last_day_of_week()
+                summary_from_date = self.get_first_day_of_prev_week()
+                summary_to_date = self.get_last_day_of_prev_week()
             else:
                 summary_from_date, summary_to_date = None, None
         if self.mashov_checkbox.isChecked():
@@ -425,8 +425,8 @@ class UiMainWindow:
                 mashov_from_date = self.mashov_from_date_picker.date().toPyDate()
                 mashov_to_date = self.mashov_to_date_picker.date().toPyDate()
             elif self.mashov_week_btn.isChecked():
-                mashov_from_date = self.get_first_day_of_week()
-                mashov_to_date = self.get_last_day_of_week()
+                mashov_from_date = self.get_first_day_of_prev_week()
+                mashov_to_date = self.get_last_day_of_prev_week()
             else:
                 mashov_from_date, mashov_to_date = None, None
         if self.periodical_checkbox.isChecked():
@@ -434,8 +434,8 @@ class UiMainWindow:
                 periodical_from_date = self.periodical_from_date_picker.date().toPyDate()
                 periodical_to_date = self.periodical_to_date_picker.date().toPyDate()
             elif self.periodical_week_btn.isChecked():
-                periodical_from_date = self.get_first_day_of_week()
-                periodical_to_date = self.get_last_day_of_week()
+                periodical_from_date = self.get_first_day_of_prev_week()
+                periodical_to_date = self.get_last_day_of_prev_week()
             else:
                 periodical_from_date, periodical_to_date = None, None
         all_from_dates.append(summary_from_date)
