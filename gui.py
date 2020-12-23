@@ -411,7 +411,9 @@ class UiMainWindow:
         summary_from_date, summary_to_date = None, None
         mashov_from_date, mashov_to_date = None, None
         periodical_from_date, periodical_to_date = None, None
+        summary, mashov, periodical = False, False, False
         if self.summary_checkbox.isChecked():
+            summary = True
             if self.summary_between_date_btn.isChecked():
                 summary_from_date = self.summary_from_date_picker.date().toPyDate()
                 summary_to_date = self.summary_to_date_picker.date().toPyDate()
@@ -421,6 +423,7 @@ class UiMainWindow:
             else:
                 summary_from_date, summary_to_date = None, None
         if self.mashov_checkbox.isChecked():
+            mashov = True
             if self.mashov_between_date_btn.isChecked():
                 mashov_from_date = self.mashov_from_date_picker.date().toPyDate()
                 mashov_to_date = self.mashov_to_date_picker.date().toPyDate()
@@ -430,6 +433,7 @@ class UiMainWindow:
             else:
                 mashov_from_date, mashov_to_date = None, None
         if self.periodical_checkbox.isChecked():
+            periodical = True
             if self.summary_between_date_btn.isChecked():
                 periodical_from_date = self.periodical_from_date_picker.date().toPyDate()
                 periodical_to_date = self.periodical_to_date_picker.date().toPyDate()
@@ -461,7 +465,10 @@ class UiMainWindow:
             mashov_from_date=mashov_from_date,
             mashov_to_date=mashov_to_date,
             periodical_from_date=periodical_from_date,
-            periodical_to_date=periodical_to_date
+            periodical_to_date=periodical_to_date,
+            summary=summary,
+            mashov=mashov,
+            periodical=periodical
         )
         self.report_maker_thread = QThread()
         self.report_maker_thread.setObjectName('report_maker_thread')
@@ -547,7 +554,7 @@ class CreateReportsAsync(QObject):
     def __init__(self, year: str, class_codes: list, destination_folder_path: str, min_from_date: date,
                  max_to_date: date, summary_from_date: date = None, summary_to_date: date = None,
                  mashov_from_date: date = None, mashov_to_date: date = None, periodical_from_date: date = None,
-                 periodical_to_date: date = None):
+                 periodical_to_date: date = None, summary=False, mashov=False, periodical=False):
         super().__init__()
         self.max_to_date = max_to_date
         self.min_from_date = min_from_date
@@ -560,6 +567,9 @@ class CreateReportsAsync(QObject):
         self.year = year
         self.class_codes = class_codes
         self.destination_folder_path = destination_folder_path
+        self.summary = summary
+        self.mashov = mashov,
+        self.periodical = periodical
 
         assert os.path.exists(self.CREDENTIALS_PATH), "קובץ קונפיגורציה חסר!"
         with open(self.CREDENTIALS_PATH) as credentials_json:
@@ -578,21 +588,24 @@ class CreateReportsAsync(QObject):
                 self.year, self.class_codes, self.username, self.password, self.destination_folder_path,
                 from_date=self.min_from_date, to_date=self.max_to_date)
             self.sig_update_error.emit('מפיק דוחות...')
-            self.sig_msg.emit(f'Create summary report from thread "{thread_name}" (#{thread_id})')
-            if self.summary_from_date and self.summary_to_date:
-                report_writer.write_summary_report(self.summary_from_date, self.summary_to_date)
-            else:
-                report_writer.write_summary_report(report_writer.from_date, report_writer.to_date)
-            self.sig_msg.emit(f'Create Mashov report from thread "{thread_name}" (#{thread_id})')
-            if self.mashov_from_date and self.mashov_to_date:
-                report_writer.write_mashov_report(self.mashov_from_date, self.mashov_to_date)
-            else:
-                report_writer.write_mashov_report(report_writer.from_date, report_writer.to_date)
-            self.sig_msg.emit(f'Create periodical report from thread "{thread_name}" (#{thread_id})')
-            if self.periodical_from_date and self.periodical_to_date:
-                report_writer.write_periodical_report(self.periodical_from_date, self.periodical_to_date)
-            else:
-                report_writer.write_periodical_report(report_writer.from_date, report_writer.to_date)
+            if self.summary:
+                self.sig_msg.emit(f'Create summary report from thread "{thread_name}" (#{thread_id})')
+                if self.summary_from_date and self.summary_to_date:
+                    report_writer.write_summary_report(self.summary_from_date, self.summary_to_date)
+                else:
+                    report_writer.write_summary_report(report_writer.from_date, report_writer.to_date)
+            if self.mashov:
+                self.sig_msg.emit(f'Create Mashov report from thread "{thread_name}" (#{thread_id})')
+                if self.mashov_from_date and self.mashov_to_date:
+                    report_writer.write_mashov_report(self.mashov_from_date, self.mashov_to_date)
+                else:
+                    report_writer.write_mashov_report(report_writer.from_date, report_writer.to_date)
+            if self.periodical:
+                self.sig_msg.emit(f'Create periodical report from thread "{thread_name}" (#{thread_id})')
+                if self.periodical_from_date and self.periodical_to_date:
+                    report_writer.write_periodical_report(self.periodical_from_date, self.periodical_to_date)
+                else:
+                    report_writer.write_periodical_report(report_writer.from_date, report_writer.to_date)
             if not self.min_from_date:
                 self.min_from_date = report_writer.from_date
             if not self.max_to_date:
