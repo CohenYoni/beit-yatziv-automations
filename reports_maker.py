@@ -118,6 +118,9 @@ class SchoolData(School):
     def get_num_of_students(self, class_num: int) -> int:
         return self._num_of_students.get(class_num, 0)
 
+    def get_num_of_students_in_school(self) -> int:
+        return sum([self.get_num_of_students(class_num) for class_num in range(1, self.num_of_active_classes + 1)])
+
 
 class ReportMaker:
     class LessonEvents:
