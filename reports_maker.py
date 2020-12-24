@@ -296,16 +296,16 @@ class ReportMaker:
         presence_summary_df = pd.DataFrame(columns=['בית ספר'])
         for school_id, school_data in self.schools_data.items():
             presence_filter = school_data.behavior_report['event_type'] == self.LessonEvents.PRESENCE
-            presence_df = school_data.behavior_report.loc[presence_filter, ['lesson_date', 'event_type']]
+            presence_df = school_data.behavior_report.loc[presence_filter, ['lesson_date', 'event_type', 'student_id']]
             from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             from_date_filter = presence_df['lesson_date'] >= pd.to_datetime(from_date)
             to_date_filter = presence_df['lesson_date'] <= pd.to_datetime(to_date)
             presence_df = presence_df.loc[from_date_filter & to_date_filter]
             presents_grp = presence_df.groupby(['lesson_date'])
-            count_grp = presents_grp.agg('count')
+            count_grp = presents_grp.agg('nunique')
             presence_df = pd.DataFrame(columns=count_grp.index.to_list())
-            presence_df = presence_df.append(count_grp['event_type'], ignore_index=True)
+            presence_df = presence_df.append(count_grp['student_id'], ignore_index=True)
             presence_df['בית ספר'] = [school_data.name]
             presence_summary_df = pd.concat([presence_summary_df, presence_df], ignore_index=True)
         presence_summary_df.columns = self.datetime_to_str_in_columns(presence_summary_df.columns, pd.Timestamp)
