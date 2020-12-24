@@ -170,8 +170,8 @@ class ReportMaker:
     @staticmethod
     def count_events(events_df, event_type):
         event_filter = events_df['event_type'] == event_type
-        result = events_df.loc[event_filter, 'event_type']
-        num_of_result = result.count()
+        result = events_df.loc[event_filter, 'student_id']
+        num_of_result = result.nunique()
         return num_of_result
 
     @staticmethod
