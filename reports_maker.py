@@ -287,8 +287,8 @@ class ReportMaker:
     def calculate_num_of_students(self):
         for school_id, school_data in self.schools_data.items():
             for class_num in range(1, school_data.num_of_active_classes + 1):
-                class_num_filter = school_data.behavior_report['class_num'] == class_num
-                class_num_students = school_data.behavior_report.loc[class_num_filter, 'student_id']
+                class_num_filter = school_data.phonebook['class_num'] == class_num
+                class_num_students = school_data.phonebook.loc[class_num_filter, 'student_id']
                 school_data.set_num_of_students(class_num, class_num_students.nunique())
 
     def create_presence_summary_report(self, from_date: date, to_date: date) -> pd.DataFrame:
