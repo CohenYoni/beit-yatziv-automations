@@ -434,7 +434,7 @@ class UiMainWindow:
                 mashov_from_date, mashov_to_date = None, None
         if self.periodical_checkbox.isChecked():
             periodical = True
-            if self.summary_between_date_btn.isChecked():
+            if self.periodical_between_date_btn.isChecked():
                 periodical_from_date = self.periodical_from_date_picker.date().toPyDate()
                 periodical_to_date = self.periodical_to_date_picker.date().toPyDate()
             elif self.periodical_week_btn.isChecked():
@@ -568,7 +568,7 @@ class CreateReportsAsync(QObject):
         self.class_codes = class_codes
         self.destination_folder_path = destination_folder_path
         self.summary = summary
-        self.mashov = mashov,
+        self.mashov = mashov
         self.periodical = periodical
 
         assert os.path.exists(self.CREDENTIALS_PATH), "קובץ קונפיגורציה חסר!"
