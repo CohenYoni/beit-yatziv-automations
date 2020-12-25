@@ -779,7 +779,7 @@ class ReportMaker:
 
         def count_by_event(df: pd.DataFrame, event_type: str):
             presence_counter_filter = df['סוג האירוע'] == event_type
-            return df.loc[presence_counter_filter, 'ת.ז'].count()
+            return df.loc[presence_counter_filter, 'ת.ז'].nunique()
 
         def calculate_student_presence(df: pd.DataFrame, num_of_lessons: int):
             date_groups = df.groupby('תאריך')
