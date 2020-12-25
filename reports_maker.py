@@ -365,7 +365,7 @@ class ReportMaker:
                    'הערה מילולית', 'הוצדק ע"י', 'הצדקה', 'בית ספר', 'יום']
         events_without_remarks = pd.DataFrame(columns=columns)
         for school_id, school_data in self.schools_data.items():
-            no_remark_events_df = school_data.behavior_report.drop('student_id', axis=1)
+            no_remark_events_df = school_data.raw_behavior_report.drop('student_id', axis=1)
             from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             from_date_filter = no_remark_events_df['lesson_date'] >= pd.to_datetime(from_date)
