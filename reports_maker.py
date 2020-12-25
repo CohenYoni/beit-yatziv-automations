@@ -25,6 +25,7 @@ class SchoolData(School):
         super().__init__(school_id, name)
         self.class_code = class_code
         self._behavior_report = None
+        self._raw_behavior_report = None
         self._phonebook = None
         self._semesters_grades_report = None
         self._all_grades_report = None
@@ -43,6 +44,14 @@ class SchoolData(School):
     @behavior_report.setter
     def behavior_report(self, behavior_report: pd.DataFrame) -> None:
         self._behavior_report = behavior_report
+
+    @property
+    def raw_behavior_report(self) -> pd.DataFrame:
+        return self._raw_behavior_report
+
+    @raw_behavior_report.setter
+    def raw_behavior_report(self, raw_behavior_report: pd.DataFrame) -> None:
+        self._raw_behavior_report = raw_behavior_report
 
     @property
     def phonebook(self) -> pd.DataFrame:
@@ -126,6 +135,7 @@ class ReportMaker:
     class LessonEvents:
         PRESENCE = 'נוכחות'
         MISSING = 'חיסור'
+        ONLINE_MISSING = 'העדרות משיעור מקוון'
         REINFORCEMENT = 'חיזוק חיובי'
         LATE = 'איחור'
         DISTURB = 'הפרעה'
@@ -203,6 +213,39 @@ class ReportMaker:
     def datetime_to_str_in_columns(df_columns: Sequence, org_type) -> list:
         return [c.strftime(ReportMaker.DATE_FORMAT) if type(c) == org_type else c for c in df_columns]
 
+    @staticmethod
+    def calculate_most_common_event_type(behavior_report: pd.DataFrame) -> pd.DataFrame:
+        def calculate_event(group_df: pd.DataFrame) -> str:
+            event_type_series = group_df['event_type']
+            if event_type_series.empty:
+                return ''
+            most_common_values = event_type_series.mode()
+            if len(most_common_values) > 1 and ReportMaker.LessonEvents.PRESENCE in most_common_values.tolist():
+                return ReportMaker.LessonEvents.PRESENCE
+            else:
+                return most_common_values.head(1).item()
+
+        groups = behavior_report.groupby(['lesson_date', 'class_num', 'student_id'])
+        for idx in groups.groups.keys():
+            group = groups.get_group(idx)
+            if len(group) > 1:
+                lesson_date, class_num, student_id = idx
+                date_filter = behavior_report['lesson_date'] == lesson_date
+                class_filter = behavior_report['class_num'] == class_num
+                id_filter = behavior_report['student_id'] == student_id
+                event = calculate_event(group)
+                if event == ReportMaker.LessonEvents.PRESENCE:
+                    missing_filter = behavior_report['event_type'] == ReportMaker.LessonEvents.MISSING
+                    online_missing = behavior_report['event_type'] == ReportMaker.LessonEvents.ONLINE_MISSING
+                    event_filter = missing_filter | online_missing
+                elif event in (ReportMaker.LessonEvents.MISSING, ReportMaker.LessonEvents.ONLINE_MISSING):
+                    event_filter = behavior_report['event_type'] == ReportMaker.LessonEvents.PRESENCE
+                else:
+                    event_filter = None
+                if event_filter is not None:
+                    behavior_report.loc[date_filter & class_filter & id_filter & event_filter, 'event_type'] = event
+        return behavior_report
+
     def __init__(self, schools_ids: list, heb_year: str, class_code: str, username: str, password: str):
         self.schools_data: Dict[int, SchoolData] = {_id: None for _id in schools_ids}
         self.heb_year = heb_year
@@ -237,6 +280,7 @@ class ReportMaker:
                 behavior_report = server.get_behavior_report_by_dates(from_date=from_date,
                                                                       to_date=to_date,
                                                                       class_code=self.class_code)
+                raw_behavior_report = behavior_report.copy()
                 phonebook = server.get_students_phonebook(class_code=self.class_code)
                 semesters_grades_report = server.get_grades_report(from_date=from_date,
                                                                    to_date=to_date,
@@ -263,7 +307,8 @@ class ReportMaker:
                 except TypeError:  # there are no data of previous year in the server
                     prev_year_grades_df = None
                 school_class_data = SchoolData(school_id, server.school.name, self.class_code)
-                school_class_data.behavior_report = behavior_report
+                school_class_data.behavior_report = self.calculate_most_common_event_type(behavior_report)
+                school_class_data.raw_behavior_report = raw_behavior_report
                 school_class_data.phonebook = phonebook
                 school_class_data.semesters_grades_report = semesters_grades_report
                 school_class_data.all_grades_report = all_grades_report
@@ -372,7 +417,7 @@ class ReportMaker:
     def assert_dates_in_range(self, from_date: date, to_date: date):
         current_date_range = f'{self.from_date.strftime(self.DATE_FORMAT)} - {self.to_date.strftime(self.DATE_FORMAT)}'
         required_date_range = f'{from_date.strftime(self.DATE_FORMAT)} - {to_date.strftime(self.DATE_FORMAT)}'
-        error_msg = 'הינך מנסה להודיד נתונים בטווח תאריכים שונה מהקיים!'
+        error_msg = 'הינך מנסה להוריד נתונים בטווח תאריכים שונה מהקיים!'
         error_msg += f'{error_msg} (קיים: {current_date_range}, נדרש: {required_date_range})'
         assert self.from_date <= from_date <= to_date <= self.to_date, error_msg
 
@@ -657,7 +702,7 @@ class ReportMaker:
     def create_raw_behavior_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         raw_behavior_by_schools = dict()
         for school_id in self.schools_data.keys():
-            behavior_df = self.schools_data[school_id].behavior_report.copy()
+            behavior_df = self.schools_data[school_id].raw_behavior_report.copy()
             from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             from_date_filter = behavior_df['lesson_date'] >= pd.to_datetime(from_date)
