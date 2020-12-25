@@ -390,23 +390,24 @@ class ReportMaker:
         middle_week_lessons_df = pd.DataFrame(columns=columns)
         for school_id, school_data in self.schools_data.items():
             not_in_saturday_filter = school_data.behavior_report['lesson_date'].dt.weekday != calendar.SATURDAY
-            required_columns = ['lesson_date', 'event_type']
+            required_columns = ['lesson_date', 'event_type', 'student_id']
             not_in_saturday_df = school_data.behavior_report.loc[not_in_saturday_filter, required_columns]
             from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
             from_date_filter = not_in_saturday_df['lesson_date'] >= pd.to_datetime(from_date)
             to_date_filter = not_in_saturday_df['lesson_date'] <= pd.to_datetime(to_date)
             not_in_saturday_df = not_in_saturday_df.loc[from_date_filter & to_date_filter]
-            num_of_students = not_in_saturday_df['lesson_date'].count()
+            num_of_students = school_data.get_num_of_students_in_school()
             num_of_presents = self.count_events(not_in_saturday_df, self.LessonEvents.PRESENCE)
             num_of_missing = self.count_events(not_in_saturday_df, self.LessonEvents.MISSING)
+            num_of_online_missing = self.count_events(not_in_saturday_df, self.LessonEvents.ONLINE_MISSING)
             num_of_reinforcements = self.count_events(not_in_saturday_df, self.LessonEvents.REINFORCEMENT)
             num_of_lateness = self.count_events(not_in_saturday_df, self.LessonEvents.LATE)
             num_of_disturbs = self.count_events(not_in_saturday_df, self.LessonEvents.DISTURB)
             data = [[
                 school_data.name,
                 num_of_presents,
-                num_of_missing,
+                num_of_missing + num_of_online_missing,
                 num_of_reinforcements,
                 num_of_lateness,
                 num_of_disturbs,
