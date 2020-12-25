@@ -371,10 +371,12 @@ class ReportMaker:
             from_date_filter = no_remark_events_df['lesson_date'] >= pd.to_datetime(from_date)
             to_date_filter = no_remark_events_df['lesson_date'] <= pd.to_datetime(to_date)
             no_remark_events_df = no_remark_events_df.loc[from_date_filter & to_date_filter]
-            event_filter = no_remark_events_df['event_type'] == self.LessonEvents.MISSING
+            missing_filter = no_remark_events_df['event_type'] == self.LessonEvents.MISSING
+            online_missing_filter = no_remark_events_df['event_type'] == self.LessonEvents.ONLINE_MISSING
+            event_filter = missing_filter | online_missing_filter
             remark_filter = no_remark_events_df['remark'].fillna('') == ''
             justification_filter = no_remark_events_df['justification'] == self.NO_REMARKS
-            no_remark_events_df = no_remark_events_df.loc[event_filter & remark_filter & justification_filter]
+            no_remark_events_df = no_remark_events_df.loc[event_filter & (remark_filter & justification_filter)]
             no_remark_events_df['school_name'] = school_data.name
             no_remark_events_df['day_of_week'] = no_remark_events_df['lesson_date'].dt.weekday.apply(
                 lambda week_day: self.HEB_DAYS_MAPPER[week_day])
