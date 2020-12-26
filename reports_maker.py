@@ -258,6 +258,7 @@ class ReportMaker:
         self._first_school_year_date = date(year=self._greg_year - 1, month=8, day=1)
         self._last_school_year_date = date(year=self._greg_year, month=11, day=30)
         self._previous_heb_year = MashovServer.map_greg_year_to_heb(self._greg_year - 1)
+        self._school_name_to_id_mapper = dict()
 
     @property
     def first_school_year_date(self) -> date:
@@ -326,6 +327,7 @@ class ReportMaker:
                 archives_class_level = server.get_class_level(self.class_code, archives_class_num)
                 school_class_data.set_level(archives_class_num, archives_class_level)
                 self.schools_data[school_id] = school_class_data
+                self._school_name_to_id_mapper[school_class_data.name] = school_id
             except Exception:
                 raise
             finally:
