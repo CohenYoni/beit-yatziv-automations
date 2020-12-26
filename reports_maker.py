@@ -636,7 +636,8 @@ class ReportMaker:
             school_details_df = school_details_df.loc[no_archive_filter]
             lesson_groups = school_details_df.groupby(['class_num', 'lesson_date', 'lesson_num'])
             school_summary_df = pd.DataFrame()
-            total_num_students = lesson_groups.apply(lambda group: group['student_id'].nunique())
+            total_num_students = lesson_groups.apply(
+                lambda group: self.schools_data[school_id].get_num_of_students(group['class_num'].head(1).item()))
             school_summary_df['מצבת'] = total_num_students
             num_of_presence = lesson_groups.apply(
                 lambda group: group.loc[
