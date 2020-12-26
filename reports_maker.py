@@ -419,6 +419,7 @@ class ReportMaker:
                 num_of_students
             ]]
             curr_df = pd.DataFrame(data, columns=columns)
+            curr_df.replace(0, pd.NA, inplace=True)
             middle_week_lessons_df = pd.concat([middle_week_lessons_df, curr_df], ignore_index=True)
         return middle_week_lessons_df
 
@@ -820,4 +821,4 @@ class ReportMaker:
         sum_data = presence_distribution.drop('בית ספר', axis=1).sum().astype(int)
         sum_data = ['סה"כ'] + list(sum_data)
         presence_distribution.loc[len(presence_distribution)] = sum_data
-        return presence_distribution
+        return presence_distribution.replace(0, pd.NA)
