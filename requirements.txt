@@ -1,6 +1,7 @@
 pyqt5-tools
 xlsxwriter
 requests
+dateutil
 pandas
 PyQt5
 numpy

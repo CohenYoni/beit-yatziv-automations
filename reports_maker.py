@@ -1,5 +1,6 @@
 from datetime import datetime, date, timedelta
 from data_server import MashovServer, School
+from dateutil import relativedelta
 from typing import Dict, Sequence
 import pandas as pd
 import calendar
@@ -272,6 +273,9 @@ class ReportMaker:
         assert from_date <= to_date, 'תאריך התחלה חייב להיות קטן יותר מתאריך סיום'
         assert self._first_school_year_date <= from_date, 'תאריך התחלה הוא לפני תחילת שנת הלימודים'
         assert to_date <= self._last_school_year_date, 'תאריך סיום הוא אחרי סיום שנת הלימודים'
+        if abs(relativedelta.relativedelta(from_date, to_date).months) == 0:
+            # municipal average presence report needs at least one month
+            from_date = to_date + relativedelta.relativedelta(months=-1)
         self.from_date = from_date
         self.to_date = to_date
         for school_id in self.schools_data.keys():
@@ -744,6 +748,9 @@ class ReportMaker:
         return raw_behavior_by_schools
 
     def create_municipal_average_presence_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+        if abs(relativedelta.relativedelta(from_date, to_date).months) == 0:
+            # municipal average presence report needs at least one month
+            from_date = to_date + relativedelta.relativedelta(months=-1)
         summary_by_schools = self.create_summary_report_by_schools(from_date, to_date)
         avg_presence_report = pd.DataFrame()
         for school_name, school_df in summary_by_schools.items():
