@@ -446,6 +446,11 @@ class ReportMaker:
             to_date_filter = all_behaviors['lesson_date'] <= pd.to_datetime(to_date)
             period_behavior_report = all_behaviors.loc[from_date_filter & to_date_filter]
             school_name = school_data.name
+            # timedelta - to start week at sunday instead of monday, so Grouper by week will be correct
+            period_behavior_report['lesson_date'] = period_behavior_report['lesson_date'].dt.date + timedelta(days=1)
+            period_behavior_report['lesson_date'] = pd.to_datetime(
+                period_behavior_report['lesson_date'], format='%Y-%m-%d')
+            # end
             week_groups = period_behavior_report.groupby(pd.Grouper(key='lesson_date', freq='W'))
             current_weeks_columns = [self.get_date_range_of_week(w.year, w.week) for w in week_groups.groups.keys()]
             current_school_columns = const_columns + current_weeks_columns
