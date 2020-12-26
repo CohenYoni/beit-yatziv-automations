@@ -596,12 +596,10 @@ class ReportMaker:
     def create_summary_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
         self.assert_dates_in_range(from_date, to_date)
         all_schools_behavior_df = pd.DataFrame()
-        school_name_to_id_mapper = dict()
         for school_id in self.schools_data.keys():
             behavior_df = self.schools_data[school_id].behavior_report.copy()
             school_name = self.schools_data[school_id].name
             behavior_df['school_name'] = school_name
-            school_name_to_id_mapper[school_name] = school_id
             all_schools_behavior_df = pd.concat([all_schools_behavior_df, behavior_df])
         from_date = pd.to_datetime(from_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
         to_date = pd.to_datetime(to_date.strftime(self.DATE_FORMAT), format=self.DATE_FORMAT)
@@ -630,7 +628,7 @@ class ReportMaker:
             'אחוז נוכחות'
         ]
         for school_key in schools_groups.groups.keys():
-            school_id = school_name_to_id_mapper[school_key]
+            school_id = self._school_name_to_id_mapper[school_key]
             school_details_df = schools_groups.get_group(school_key)
             school_details_df['level'] = school_details_df['class_num'].apply(
                 self.schools_data[school_id].get_level)
@@ -703,7 +701,7 @@ class ReportMaker:
             school_summary_df['הערות'] = pd.NA
             schools_summary[school_key] = school_summary_df
         if not schools_summary:
-            for school_name in school_name_to_id_mapper.keys():
+            for school_name in self._school_name_to_id_mapper.keys():
                 df = pd.DataFrame(columns=cols_order + ['סיבת החיסורים וטיפול בהפרעות (ואסים)', 'הערות'])
                 schools_summary[school_name] = df
         return schools_summary
