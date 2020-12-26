@@ -200,7 +200,10 @@ class MashovReportsToExcel:
         self.heb_year = heb_year
         self.destination_folder_path = os.path.join(destination_folder_path, self.DESTINATION_FOLDER_NAME)
         if os.path.exists(self.destination_folder_path):
-            shutil.rmtree(self.destination_folder_path)
+            try:
+                shutil.rmtree(self.destination_folder_path)
+            except:
+                raise OSError('נא לסגור את הדוחות הפתוחים!')
         os.makedirs(self.destination_folder_path)
         self.report_makers_for_class = dict()
         for class_code in self.class_codes:
