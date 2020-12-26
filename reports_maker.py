@@ -179,13 +179,6 @@ class ReportMaker:
     DATE_FORMAT = '%d/%m/%Y'
 
     @staticmethod
-    def count_events(events_df, event_type):
-        event_filter = events_df['event_type'] == event_type
-        result = events_df.loc[event_filter, 'student_id']
-        num_of_result = result.nunique()
-        return num_of_result
-
-    @staticmethod
     def sort_datetime_columns_names(df: pd.DataFrame, non_datetime_names: Sequence, datetime_format: str):
         non_datetime_names_columns = df[non_datetime_names]
         datetime_names_columns = df.drop(non_datetime_names_columns, axis=1)
@@ -394,6 +387,17 @@ class ReportMaker:
         return events_without_remarks
 
     def create_middle_week_lessons_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+
+        def count_events(events_df: pd.DataFrame, event_type: str) -> int:
+            event_filter = events_df['event_type'] == event_type
+            event_df = events_df.loc[event_filter, ['student_id', 'lesson_date']]
+            event_groups_by_dates = event_df.groupby('lesson_date')
+            event_count_by_dates = event_groups_by_dates.apply(lambda group: group['student_id'].nunique())
+            if event_count_by_dates.empty:
+                return 0
+            else:
+                return int(round(event_count_by_dates.mean()))
+
         self.assert_dates_in_range(from_date, to_date)
         columns = ['בית ספר', 'נוכחים', 'חיסורים', 'חיזוקים', 'איחור', 'הפרעה', 'מצבת']
         middle_week_lessons_df = pd.DataFrame(columns=columns)
@@ -407,12 +411,12 @@ class ReportMaker:
             to_date_filter = not_in_saturday_df['lesson_date'] <= pd.to_datetime(to_date)
             not_in_saturday_df = not_in_saturday_df.loc[from_date_filter & to_date_filter]
             num_of_students = school_data.get_num_of_students_in_school()
-            num_of_presents = self.count_events(not_in_saturday_df, self.LessonEvents.PRESENCE)
-            num_of_missing = self.count_events(not_in_saturday_df, self.LessonEvents.MISSING)
-            num_of_online_missing = self.count_events(not_in_saturday_df, self.LessonEvents.ONLINE_MISSING)
-            num_of_reinforcements = self.count_events(not_in_saturday_df, self.LessonEvents.REINFORCEMENT)
-            num_of_lateness = self.count_events(not_in_saturday_df, self.LessonEvents.LATE)
-            num_of_disturbs = self.count_events(not_in_saturday_df, self.LessonEvents.DISTURB)
+            num_of_presents = count_events(not_in_saturday_df, self.LessonEvents.PRESENCE)
+            num_of_missing = count_events(not_in_saturday_df, self.LessonEvents.MISSING)
+            num_of_online_missing = count_events(not_in_saturday_df, self.LessonEvents.ONLINE_MISSING)
+            num_of_reinforcements = count_events(not_in_saturday_df, self.LessonEvents.REINFORCEMENT)
+            num_of_lateness = count_events(not_in_saturday_df, self.LessonEvents.LATE)
+            num_of_disturbs = count_events(not_in_saturday_df, self.LessonEvents.DISTURB)
             data = [[
                 school_data.name,
                 num_of_presents,
