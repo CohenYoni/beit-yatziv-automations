@@ -514,7 +514,8 @@ class ReportMaker:
             school_groups = level_df.groupby('school_name')
             for school_name in school_groups.groups.keys():
                 school_df = school_groups.get_group(school_name)
-                num_of_students = school_df['student_id'].nunique()
+                school_id = self._school_name_to_id_mapper.get(school_name)
+                num_of_students = self.schools_data[school_id].get_num_of_students_in_school()
                 school_data = {
                     'בית ספר': school_name,
                     'מצבת': num_of_students
@@ -528,7 +529,7 @@ class ReportMaker:
                     presence_filter = month_df['event_type'] == self.LessonEvents.PRESENCE
                     month_presence = month_df.loc[presence_filter]
                     lesson_date_groups = month_presence.groupby('lesson_date')
-                    num_of_average_presence = int(round(lesson_date_groups['lesson_date'].count().mean()))
+                    num_of_average_presence = int(round(lesson_date_groups['student_id'].nunique().mean()))
                     school_data[MONTHS_IN_HEBREW[month_key.month]] = num_of_average_presence
                 presence_by_month_df = presence_by_month_df.append(school_data, ignore_index=True)
             presence_by_month[level] = presence_by_month_df
