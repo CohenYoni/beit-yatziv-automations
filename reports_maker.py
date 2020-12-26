@@ -296,15 +296,18 @@ class ReportMaker:
                                                                   class_code=self.class_code,
                                                                   exam_type=MashovServer.ExamType.SEMESTER_EXAM)
                 try:
-                    server.school_year = self._previous_heb_year  # will raise an exception if there is no prev year
+                    # "school_year=self._previous_heb_year" will raise an exception if there is no prev year
+                    prev_year_server = MashovServer(school_id=school_id, school_year=self._previous_heb_year)
                     prev_greg_year = self._greg_year - 1
                     prev_from_date = self._first_school_year_date.replace(year=prev_greg_year - 1)
                     prev_to_date = self._last_school_year_date.replace(year=prev_greg_year)
                     prev_class_code = self.get_previous_class_code(self.class_code)
-                    server.login(username=self.username, password=self.password)
-                    prev_year_grades_df = server.get_grades_report(from_date=prev_from_date, to_date=prev_to_date,
-                                                                   class_code=prev_class_code,
-                                                                   exam_type=MashovServer.ExamType.SEMESTER_EXAM)
+                    prev_year_server.login(username=self.username, password=self.password)
+                    prev_year_grades_df = prev_year_server.get_grades_report(
+                        from_date=prev_from_date,
+                        to_date=prev_to_date,
+                        class_code=prev_class_code,
+                        exam_type=MashovServer.ExamType.SEMESTER_EXAM)
                 except TypeError:  # there are no data of previous year in the server
                     prev_year_grades_df = None
                 school_class_data = SchoolData(school_id, server.school.name, self.class_code)
