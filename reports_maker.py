@@ -188,7 +188,12 @@ class ReportMaker:
         return pd.concat([non_datetime_names_columns, datetime_names_columns], axis=1)
 
     @staticmethod
-    def get_date_range_of_week(year: int, week_number: int) -> str:
+    def get_date_range_of_week(year: int, week_number: int, month_num: int) -> str:
+        common_num_of_weeks_in_year = 52
+        january = 1
+        if week_number >= common_num_of_weeks_in_year and month_num == january:
+            # in that case the week is the last week of the previous year
+            year -= 1
         week_first_date = date.fromisocalendar(year, week_number, 1) - timedelta(days=1)
         week_last_date = date.fromisocalendar(year, week_number, 7) - timedelta(days=1)
         rng = f'{week_first_date.strftime(ReportMaker.DATE_FORMAT)}-{week_last_date.strftime(ReportMaker.DATE_FORMAT)}'
@@ -456,7 +461,8 @@ class ReportMaker:
                 period_behavior_report['lesson_date'], format='%Y-%m-%d')
             # end
             week_groups = period_behavior_report.groupby(pd.Grouper(key='lesson_date', freq='W'))
-            current_weeks_columns = [self.get_date_range_of_week(w.year, w.week) for w in week_groups.groups.keys()]
+            current_weeks_columns = [
+                self.get_date_range_of_week(w.year, w.week, w.month) for w in week_groups.groups.keys()]
             current_school_columns = const_columns + current_weeks_columns
             current_school_df = pd.DataFrame(columns=current_school_columns)
             for class_num in range(1, school_data.num_of_active_classes + 1):
@@ -479,7 +485,7 @@ class ReportMaker:
                         num_of_presence = int(round(presence_events_in_week_groups.nunique().mean()))
                     else:  # there is no presence events in that lesson
                         num_of_presence = 0
-                    week_column_name = self.get_date_range_of_week(week_key.year, week_key.week)
+                    week_column_name = self.get_date_range_of_week(week_key.year, week_key.week, week_key.month)
                     new_row_data[week_column_name] = num_of_presence
                 current_school_df = current_school_df.append(new_row_data, ignore_index=True)
             periodic_attendance[school_name] = current_school_df
@@ -782,7 +788,7 @@ class ReportMaker:
             average_presence['תאריך שיעור'] = pd.to_datetime(average_presence['תאריך שיעור'], format='%Y-%m-%d')
             # end
             average_presence['תאריך שיעור'] = average_presence['תאריך שיעור'].apply(
-                lambda row: self.get_date_range_of_week(row.year, row.week))
+                lambda row: self.get_date_range_of_week(row.year, row.week, row.month))
             average_presence['תאריך שיעור'] = 'השתתפות ' + average_presence['תאריך שיעור']
             average_presence = average_presence.rename(columns={'תאריך שיעור': 'date'}).transpose()
             average_presence.columns = average_presence.loc['date']
