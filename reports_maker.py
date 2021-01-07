@@ -685,19 +685,24 @@ class ReportMaker:
             num_of_testing_students = grades_groups.apply(lambda group: group['student_id'].nunique())
             num_of_failed_students = grades_groups.apply(lambda group: group.loc[
                 group['exam_grade'] < self.FAIL_GRADE_THRESHOLD, 'student_id'].nunique())
-            grps_to_max_lesson_num = school_summary_df.reset_index().groupby(['class_num', 'lesson_date'])
-            max_lesson_num = grps_to_max_lesson_num.apply(lambda grp: grp['lesson_num'].max())
-            grades_summary_df = pd.DataFrame()
-            grades_summary_df['lesson_num'] = max_lesson_num
             if num_of_testing_students.empty:
                 num_of_testing_students = pd.Series()
             if num_of_failed_students.empty:
                 num_of_failed_students = pd.Series()
-            grades_summary_df['מגישים'] = num_of_testing_students
-            grades_summary_df[f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})'] = num_of_failed_students
-            grades_summary_df.set_index('lesson_num', append=True, inplace=True)
-            school_summary_df = school_summary_df.join(grades_summary_df)
+            num_of_testing_students.name = 'מגישים'
+            num_of_failed_students.name = f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})'
+            grades_summary_df = pd.concat([num_of_testing_students, num_of_failed_students], axis=1).reset_index()
+            if not grades_summary_df.empty:
+                grades_summary_df['מצבת'] = grades_summary_df['class_num'].apply(
+                    self.schools_data[school_id].get_num_of_students)
+                try:
+                    grades_summary_df['אחוז נוכחות'] = round(
+                        (grades_summary_df['מגישים'] / grades_summary_df['מצבת']) * 100).astype(int).astype(str) + '%'
+                except ZeroDivisionError:
+                    grades_summary_df['אחוז נוכחות'] = pd.NA
+                grades_summary_df['lesson_num'] = 'בחינה'
             school_summary_df.reset_index(inplace=True)
+            school_summary_df = pd.concat([school_summary_df, grades_summary_df], ignore_index=True)
             cols_to_replace = ['מצבת', 'נוכחים', 'חיסורים', 'הפרעה', 'מגישים',
                                f'נכשלים (מתחת {self.FAIL_GRADE_THRESHOLD})']
             school_summary_df[cols_to_replace] = school_summary_df[cols_to_replace].replace(0, pd.NA)
