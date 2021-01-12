@@ -581,6 +581,15 @@ class CreateReportsAsync(QObject):
     def create_reports(self):
         thread_name = QThread.currentThread().objectName()
         thread_id = int(QThread.currentThreadId())
+        msg = ' - תאריך התחלה לא יכול להיות אחרי תאריך סיום'
+        try:
+            assert self.summary_from_date <= self.summary_to_date, f'דוח סיכום{msg}'
+            assert self.mashov_from_date <= self.mashov_to_date, f'דוח משוב{msg}'
+            assert self.periodical_from_date <= self.periodical_to_date, f'דוח תקופתי{msg}'
+        except AssertionError as e:
+            self.sig_update_error.emit(self.get_exception_msg(e))
+            self.sig_done.emit()
+            return
         self.sig_msg.emit(f'Fetching data from thread "{thread_name}" (#{thread_id})')
         self.sig_update_error.emit('מוריד מידע מהשרת, נא להמתין...')
         try:
