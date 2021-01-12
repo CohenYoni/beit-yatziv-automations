@@ -771,6 +771,8 @@ class ReportMaker:
         if abs(relativedelta.relativedelta(from_date, to_date).months) == 0:
             # municipal average presence report needs at least one month
             from_date = to_date + relativedelta.relativedelta(months=-1)
+            if from_date < self.first_school_year_date:
+                from_date = self.first_school_year_date
         summary_by_schools = self.create_summary_report_by_schools(from_date, to_date)
         avg_presence_report = pd.DataFrame()
         for school_name, school_df in summary_by_schools.items():

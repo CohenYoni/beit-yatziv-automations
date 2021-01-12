@@ -214,7 +214,7 @@ class MashovReportsToExcel:
                 to_date = report_maker.last_school_year_date
             self.from_date = from_date
             self.to_date = to_date
-            report_maker.fetch_data_from_server(from_date, to_date)
+            report_maker.fetch_data_from_server(report_maker.first_school_year_date, report_maker.last_school_year_date)
             self.report_makers_for_class[class_code] = report_maker
 
     def write_raw_behavior_report(self, from_date: date, to_date: date) -> None:
