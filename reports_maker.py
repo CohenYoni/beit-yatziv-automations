@@ -440,7 +440,7 @@ class ReportMaker:
         current_date_range = f'{self.from_date.strftime(self.DATE_FORMAT)} - {self.to_date.strftime(self.DATE_FORMAT)}'
         required_date_range = f'{from_date.strftime(self.DATE_FORMAT)} - {to_date.strftime(self.DATE_FORMAT)}'
         error_msg = 'הינך מנסה להוריד נתונים בטווח תאריכים שונה מהקיים!'
-        error_msg += f'{error_msg} (קיים: {current_date_range}, נדרש: {required_date_range})'
+        error_msg += f' (קיים: {current_date_range}, נדרש: {required_date_range})'
         assert self.from_date <= from_date <= to_date <= self.to_date, error_msg
 
     def create_presence_report_by_schools(self, from_date: date, to_date: date) -> Dict[str, pd.DataFrame]:
