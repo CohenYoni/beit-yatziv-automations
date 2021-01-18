@@ -583,9 +583,12 @@ class CreateReportsAsync(QObject):
         thread_id = int(QThread.currentThreadId())
         msg = ' - תאריך התחלה לא יכול להיות אחרי תאריך סיום'
         try:
-            assert self.summary_from_date <= self.summary_to_date, f'דוח סיכום{msg}'
-            assert self.mashov_from_date <= self.mashov_to_date, f'דוח משוב{msg}'
-            assert self.periodical_from_date <= self.periodical_to_date, f'דוח תקופתי{msg}'
+            if self.summary_from_date is not None and self.summary_to_date is not None:
+                assert self.summary_from_date <= self.summary_to_date, f'דוח סיכום{msg}'
+            if self.mashov_from_date is not None and self.mashov_to_date is not None:
+                assert self.mashov_from_date <= self.mashov_to_date, f'דוח משוב{msg}'
+            if self.periodical_from_date is not None and self.periodical_to_date is not None:
+                assert self.periodical_from_date <= self.periodical_to_date, f'דוח תקופתי{msg}'
         except AssertionError as e:
             self.sig_update_error.emit(self.get_exception_msg(e))
             self.sig_done.emit()
