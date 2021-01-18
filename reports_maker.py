@@ -364,6 +364,9 @@ class ReportMaker:
             presence_df = presence_df.append(count_grp['student_id'], ignore_index=True)
             presence_df['בית ספר'] = [school_data.name]
             presence_summary_df = pd.concat([presence_summary_df, presence_df], ignore_index=True)
+        presence_summary_df = presence_summary_df.reindex(
+            [presence_summary_df.columns[0]] + sorted(presence_summary_df.columns[1:]), axis=1
+        )
         presence_summary_df.columns = self.datetime_to_str_in_columns(presence_summary_df.columns, pd.Timestamp)
         return presence_summary_df
 
