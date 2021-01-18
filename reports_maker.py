@@ -4,6 +4,7 @@ from dateutil import relativedelta
 from typing import Dict, Sequence
 import pandas as pd
 import calendar
+import re
 
 MONTHS_IN_HEBREW = {
     1: 'ינואר',
@@ -768,6 +769,18 @@ class ReportMaker:
         return raw_behavior_by_schools
 
     def create_municipal_average_presence_report(self, from_date: date, to_date: date) -> pd.DataFrame:
+        def sort_columns_by_dates(list_to_sort: list) -> list:
+            pattern = r'השתתפות (?P<from_date>[\d\/]+)-'
+            list_with_sort_key = [re.search(pattern, el) for el in list_to_sort]
+            if None in list_with_sort_key:  # all element must match the pattern:
+                return list_to_sort
+            list_with_sort_key = [el.group('from_date') for el in list_with_sort_key]
+            list_with_sort_key = [datetime.strptime(el, '%d/%m/%Y').date() for el in list_with_sort_key]
+            list_with_sort_key = [{'org': el, 'sort_key': sort_key} for el, sort_key in
+                                  zip(list_to_sort, list_with_sort_key)]
+            list_with_sort_key = sorted(list_with_sort_key, key=lambda el: el['sort_key'])
+            return [el['org'] for el in list_with_sort_key]
+
         if abs(relativedelta.relativedelta(from_date, to_date).months) == 0:
             # municipal average presence report needs at least one month
             from_date = to_date + relativedelta.relativedelta(months=-1)
@@ -808,7 +821,8 @@ class ReportMaker:
         sum_data = sum_data.fillna(0).apply(round).replace(0, '')
         sum_data = ['ממוצע נוכחות עירוני'] + [f'{avg}%' if avg else pd.NA for avg in sum_data]
         avg_presence_report.loc[len(avg_presence_report)] = sum_data
-        return avg_presence_report
+        return avg_presence_report.reindex([avg_presence_report.columns[0]] +
+                                           sort_columns_by_dates(avg_presence_report.columns[1:]), axis=1)
 
     def create_presence_distribution_report(self, from_date: date, to_date: date) -> pd.DataFrame:
 
